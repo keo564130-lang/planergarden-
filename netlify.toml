@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Обеспечивает корректную работу роутинга в Single Page App на Netlify
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
