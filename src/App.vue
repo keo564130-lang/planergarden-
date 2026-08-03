@@ -36,6 +36,7 @@ const dayTables = ref([])
 // AI Chat state
 const aiChats = ref([])
 const aiMessages = ref([])
+const allAiMessages = ref({}) // { [chatId]: Array<Message> }
 const currentChatId = ref(null)
 const isAiTyping = ref(false)
 
@@ -195,6 +196,10 @@ onMounted(async () => {
   if (savedTasks) { try { tasks.value = JSON.parse(savedTasks) } catch (e) {} }
   const savedTables = localStorage.getItem('garden_planner_day_tables')
   if (savedTables) { try { dayTables.value = JSON.parse(savedTables) } catch (e) {} }
+  const savedChats = localStorage.getItem('garden_planner_ai_chats')
+  if (savedChats) { try { aiChats.value = JSON.parse(savedChats) } catch (e) {} }
+  const savedAllMsgs = localStorage.getItem('garden_planner_all_ai_messages')
+  if (savedAllMsgs) { try { allAiMessages.value = JSON.parse(savedAllMsgs) } catch (e) {} }
 
   // 3. iOS/Android keyboard fix — global level
   const initialHeight = window.innerHeight
@@ -277,6 +282,8 @@ onMounted(async () => {
 // Keep local storage in sync
 watch(tasks, (v) => { localStorage.setItem('garden_planner_tasks', JSON.stringify(v)) }, { deep: true })
 watch(dayTables, (v) => { localStorage.setItem('garden_planner_day_tables', JSON.stringify(v)) }, { deep: true })
+watch(aiChats, (v) => { localStorage.setItem('garden_planner_ai_chats', JSON.stringify(v)) }, { deep: true })
+watch(allAiMessages, (v) => { localStorage.setItem('garden_planner_all_ai_messages', JSON.stringify(v)) }, { deep: true })
 
 watch(isDarkMode, (newVal) => {
   localStorage.setItem('garden_planner_dark_mode', newVal)
@@ -393,20 +400,42 @@ const handleNewChat = async () => {
 
 const handleSelectChat = async (chatId) => {
   currentChatId.value = chatId
-  aiMessages.value = []
-  if (supabase && currentUser.value) {
+  // Restore from local cache immediately
+  if (chatId && allAiMessages.value[chatId]) {
+    aiMessages.value = allAiMessages.value[chatId]
+  } else {
+    aiMessages.value = []
+  }
+  
+  if (supabase && currentUser.value && chatId) {
     try {
       const { data, error } = await supabase.from('ai_messages').select('*').eq('chat_id', chatId).order('created_at', { ascending: true })
-      if (!error && data) aiMessages.value = data
+      if (!error && data) {
+        aiMessages.value = data
+        allAiMessages.value = { ...allAiMessages.value, [chatId]: data }
+      }
     } catch (err) { console.error('Failed to load messages:', err.message) }
   }
 }
 
 const handleDeleteChat = async (chatId) => {
   aiChats.value = aiChats.value.filter(c => c.id !== chatId)
+  const updatedAll = { ...allAiMessages.value }
+  delete updatedAll[chatId]
+  allAiMessages.value = updatedAll
+
   if (currentChatId.value === chatId) { currentChatId.value = null; aiMessages.value = [] }
   if (supabase && currentUser.value) {
     try { await supabase.from('ai_chats').delete().eq('id', chatId) } catch (err) { console.error('Failed to delete chat:', err.message) }
+  }
+}
+
+const saveLocalMessages = () => {
+  if (currentChatId.value) {
+    allAiMessages.value = {
+      ...allAiMessages.value,
+      [currentChatId.value]: [...aiMessages.value]
+    }
   }
 }
 
@@ -416,6 +445,7 @@ const handleSendMessage = async (messageText) => {
   // Add user message locally
   const userMsg = { id: Date.now().toString(), chat_id: currentChatId.value, role: 'user', content: messageText, created_at: new Date().toISOString() }
   aiMessages.value.push(userMsg)
+  saveLocalMessages()
 
   // Update chat title if first message
   const chat = aiChats.value.find(c => c.id === currentChatId.value)
@@ -430,7 +460,11 @@ const handleSendMessage = async (messageText) => {
   if (supabase && currentUser.value) {
     try {
       const { data } = await supabase.from('ai_messages').insert({ chat_id: currentChatId.value, role: 'user', content: messageText }).select()
-      if (data && data[0]) { const idx = aiMessages.value.findIndex(m => m.id === userMsg.id); if (idx !== -1) aiMessages.value[idx] = data[0] }
+      if (data && data[0]) {
+        const idx = aiMessages.value.findIndex(m => m.id === userMsg.id)
+        if (idx !== -1) aiMessages.value[idx] = data[0]
+        saveLocalMessages()
+      }
     } catch (err) { console.error('Failed to save message:', err.message) }
   }
 
@@ -448,6 +482,7 @@ const handleSendMessage = async (messageText) => {
     const aiReply = data.reply || data.error || 'Не удалось получить ответ.'
     const aiMsg = { id: (Date.now() + 1).toString(), chat_id: currentChatId.value, role: 'assistant', content: aiReply, created_at: new Date().toISOString() }
     aiMessages.value.push(aiMsg)
+    saveLocalMessages()
 
     // Save AI response to DB
     if (supabase && currentUser.value) {
@@ -456,6 +491,7 @@ const handleSendMessage = async (messageText) => {
   } catch (err) {
     const errorMsg = { id: (Date.now() + 1).toString(), chat_id: currentChatId.value, role: 'assistant', content: 'Ошибка подключения к ИИ. Проверьте интернет.', created_at: new Date().toISOString() }
     aiMessages.value.push(errorMsg)
+    saveLocalMessages()
   } finally {
     isAiTyping.value = false
   }
