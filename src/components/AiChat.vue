@@ -52,9 +52,7 @@
               class="message-wrapper"
               :class="msg.role === 'user' ? 'is-user' : 'is-ai'"
             >
-              <div class="message-bubble">
-                {{ msg.content }}
-              </div>
+              <div class="message-bubble" v-html="renderMarkdown(msg.content)"></div>
               <div class="message-time">{{ formatTime(msg.created_at) }}</div>
             </div>
             
@@ -169,6 +167,25 @@ const formatDate = (isoString) => {
   if (!isoString) return ''
   const date = new Date(isoString)
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+}
+
+const renderMarkdown = (text) => {
+  if (!text) return ''
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/^### (.*$)/gim, '<h4>$1</h4>')
+    .replace(/^## (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^# (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^\s*[\-\*]\s+(.*)$/gim, '<li class="md-li">$1</li>')
+    .replace(/\n/g, '<br>')
+
+  return html
 }
 </script>
 
@@ -355,9 +372,34 @@ const formatDate = (isoString) => {
 
 .message-bubble {
   padding: 12px 16px;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.5;
   word-break: break-word;
+}
+
+.message-bubble :deep(strong) {
+  font-weight: 700;
+}
+
+.message-bubble :deep(code) {
+  font-family: monospace;
+  background: rgba(0,0,0,0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.message-bubble :deep(pre) {
+  background: rgba(0,0,0,0.12);
+  padding: 8px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+
+.message-bubble :deep(.md-li) {
+  margin-left: 16px;
+  list-style-type: disc;
 }
 
 .is-user .message-bubble {
