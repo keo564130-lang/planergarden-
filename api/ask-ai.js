@@ -33,11 +33,12 @@ export default async function handler(req, res) {
       { role: 'user', content: message }
     ]
 
-    // OpenRouter FREE tier requires :free suffix on model names!
+    // Actual live models directly fetched from OpenRouter API
     const candidateModels = [
-      'google/gemini-2.0-flash-exp:free',
-      'google/gemini-2.0-pro-exp-02-05:free',
-      'google/gemini-flash-1.5-exp:free'
+      'google/gemini-3.6-flash',
+      'google/gemini-3.5-flash',
+      'google/gemini-2.5-flash',
+      'google/gemini-2.5-pro'
     ]
 
     let lastError = null
@@ -73,7 +74,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(500).json({ error: `Не удалось получить ответ Gemini: ${lastError}` })
+    return res.status(500).json({ error: `Ошибка Gemini API: ${lastError}` })
 
   } catch (error) {
     console.error('Ask AI Handler Error:', error)
