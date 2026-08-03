@@ -226,7 +226,7 @@ body {
   cursor: pointer;
   font-family: var(--font-family);
   transition: color 0.15s;
-  padding: 14px 0;
+  padding: 12px 0;
   -webkit-tap-highlight-color: transparent;
 }
 
