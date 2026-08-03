@@ -78,10 +78,15 @@ const deleteTask = (taskId) => {
   emit('delete-task', taskId)
 }
 
-// Translate date for readable heading (e.g. 2026-07-01 -> 1 июля)
 const getReadableDateString = (dateStr) => {
+  if (!dateStr) return ''
   const parts = dateStr.split('-')
-  const date = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10))
+  if (parts.length < 3) return dateStr
+  const y = parseInt(parts[0], 10)
+  const m = parseInt(parts[1], 10) - 1
+  const d = parseInt(parts[2], 10)
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return dateStr
+  const date = new Date(y, m, d)
   const months = [
     'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
     'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
