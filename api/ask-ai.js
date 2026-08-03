@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Сообщение обязательно.' })
     }
 
-    const systemPrompt = 'Ты — экспертный ИИ-помощник Gemini от Google по дачному и домашнему планера задач. Отвечай на русском языке. Давай точные и практичные советы по растениям, огороду, саду и быту. Будь структурированным и вежливым. Используй эмодзи.'
+    const systemPrompt = 'Ты — экспертный ИИ-помощник Gemini от Google по дачному и домашнему планера задач. Отвечай на русском языке. Давай точные и практичные советы по растениям, огородом, саду и быту. Будь структурированным и вежливым. Используй эмодзи.'
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -33,12 +33,12 @@ export default async function handler(req, res) {
       { role: 'user', content: message }
     ]
 
-    // Official active OpenRouter Gemini models
+    // Tested working candidate models
     const candidateModels = [
-      'google/gemini-2.0-flash-lite-001',
+      'google/gemini-2.0-flash-exp:free',
       'google/gemini-2.0-flash-001',
-      'google/gemini-flash-1.5-8b',
-      'google/gemini-pro-1.5'
+      'google/gemini-flash-1.5',
+      'meta-llama/llama-3.3-70b-instruct:free'
     ]
 
     let lastError = null
@@ -74,7 +74,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(500).json({ error: `Ошибка Gemini API: ${lastError}` })
+    return res.status(500).json({ error: `Не удалось получить ответ ИИ: ${lastError}` })
 
   } catch (error) {
     console.error('Ask AI Handler Error:', error)
