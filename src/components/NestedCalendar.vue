@@ -1,85 +1,108 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
-  year: {
-    type: Number,
-    default: 2026
-  },
-  currentMonth: {
-    type: Number,
-    default: null
-  },
-  currentWeekIndex: {
-    type: Number,
-    default: null
-  },
-  currentDay: {
-    type: Number,
-    default: null
-  },
-  viewLevel: {
-    type: String,
-    required: true // 'month', 'week', 'day'
-  },
-  tasks: {
-    type: Array,
-    required: true
-  }
+  year: { type: Number, default: 2026 },
+  currentMonth: { type: Number, default: null },
+  viewLevel: { type: String, required: true },
+  tasks: { type: Array, required: true },
+  dayTables: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits([
   'update:currentMonth',
-  'update:currentWeekIndex',
-  'update:currentDay',
   'update:viewLevel',
   'select-day'
 ])
+
+// Currently displayed month in day-grid view (allows swipe between months)
+const displayMonth = ref(props.currentMonth !== null ? props.currentMonth : new Date().getMonth())
+const displayYear = ref(props.year)
+const selectedDay = ref(null)
+
+// Sync displayMonth when parent changes currentMonth
+watch(() => props.currentMonth, (val) => {
+  if (val !== null) {
+    displayMonth.value = val
+    displayYear.value = props.year
+  }
+})
 
 const monthsList = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
 ]
 
-const dayNamesShort = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
-const dayNamesFull = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
+const weekdayHeaders = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
-// Computes weeks of the selected month
-const computedWeeks = computed(() => {
-  if (props.currentMonth === null) return []
+// Today detection
+const today = new Date()
+const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+// Compute calendar grid cells for displayMonth
+const calendarCells = computed(() => {
+  const y = displayYear.value
+  const m = displayMonth.value
+  const firstDay = new Date(y, m, 1)
+  const lastDay = new Date(y, m + 1, 0)
   
-  const year = props.year
-  const month = props.currentMonth
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
+  // Day of week of 1st (convert Sun=0 to Mon=0 format)
+  let startDow = firstDay.getDay() - 1
+  if (startDow < 0) startDow = 6
   
-  const weeks = []
-  let currentWeek = []
+  const cells = []
   
-  for (let d = 1; d <= lastDay.getDate(); d++) {
-    const date = new Date(year, month, d)
-    currentWeek.push({
-      dayNumber: d,
-      dayOfWeek: date.getDay(), // 0 = Sun, 1 = Mon ...
-      dateString: `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    })
-    
-    // If it's Sunday (0) or the last day of the month, close the week
-    if (date.getDay() === 0 || d === lastDay.getDate()) {
-      weeks.push(currentWeek)
-      currentWeek = []
+  // Previous month fill
+  if (startDow > 0) {
+    const prevLastDay = new Date(y, m, 0).getDate()
+    const prevMonth = m === 0 ? 11 : m - 1
+    const prevYear = m === 0 ? y - 1 : y
+    for (let i = startDow - 1; i >= 0; i--) {
+      const d = prevLastDay - i
+      cells.push({
+        day: d,
+        dateString: `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+        otherMonth: true
+      })
     }
   }
-  return weeks
+  
+  // Current month
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    cells.push({
+      day: d,
+      dateString: `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+      otherMonth: false
+    })
+  }
+  
+  // Next month fill (to complete 6 rows max)
+  const remaining = 42 - cells.length
+  const nextMonth = m === 11 ? 0 : m + 1
+  const nextYear = m === 11 ? y + 1 : y
+  for (let d = 1; d <= remaining; d++) {
+    cells.push({
+      day: d,
+      dateString: `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+      otherMonth: true
+    })
+  }
+  
+  // Trim trailing empty row if possible
+  if (cells.length > 35) {
+    const lastRowStart = 35
+    const lastRowAllOther = cells.slice(lastRowStart).every(c => c.otherMonth)
+    if (lastRowAllOther) cells.splice(lastRowStart)
+  }
+  
+  return cells
 })
 
-// Active task count utilities
-const getTaskCountForDate = (dateStr) => {
-  return props.tasks.filter(t => t.date === dateStr && !t.completed).length
-}
-
-const getTaskCountForWeek = (week) => {
-  return week.reduce((acc, day) => acc + getTaskCountForDate(day.dateString), 0)
+// Task count helpers
+const hasDataForDate = (dateStr) => {
+  const hasTasks = props.tasks.some(t => t.date === dateStr && !t.completed)
+  const hasTables = props.dayTables.some(t => t.date === dateStr)
+  return hasTasks || hasTables
 }
 
 const getTaskCountForMonth = (monthIdx) => {
@@ -87,95 +110,65 @@ const getTaskCountForMonth = (monthIdx) => {
   return props.tasks.filter(t => t.date.startsWith(monthPrefix) && !t.completed).length
 }
 
-// Navigation Handlers
+// Navigation
 const selectMonth = (monthIdx) => {
+  displayMonth.value = monthIdx
+  displayYear.value = props.year
+  selectedDay.value = null
   emit('update:currentMonth', monthIdx)
-  emit('update:viewLevel', 'week')
+  emit('update:viewLevel', 'days')
 }
 
-const selectWeek = (weekIdx) => {
-  emit('update:currentWeekIndex', weekIdx)
-  emit('update:viewLevel', 'day')
+const prevMonth = () => {
+  if (displayMonth.value === 0) {
+    displayMonth.value = 11
+    displayYear.value--
+  } else {
+    displayMonth.value--
+  }
+  selectedDay.value = null
+  emit('update:currentMonth', displayMonth.value)
 }
 
-const selectDay = (dayNum) => {
-  emit('update:currentDay', dayNum)
-  const dateStr = `${props.year}-${String(props.currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-  emit('select-day', dateStr)
+const nextMonth = () => {
+  if (displayMonth.value === 11) {
+    displayMonth.value = 0
+    displayYear.value++
+  } else {
+    displayMonth.value++
+  }
+  selectedDay.value = null
+  emit('update:currentMonth', displayMonth.value)
 }
 
-// Breadcrumb click handlers to jump back
+const selectDayCell = (cell) => {
+  if (cell.otherMonth) return
+  selectedDay.value = cell.dateString
+  emit('select-day', cell.dateString)
+}
+
 const navigateToMonths = () => {
+  selectedDay.value = null
   emit('update:currentMonth', null)
-  emit('update:currentWeekIndex', null)
-  emit('update:currentDay', null)
   emit('update:viewLevel', 'month')
 }
 
-const navigateToWeeks = () => {
-  emit('update:currentWeekIndex', null)
-  emit('update:currentDay', null)
-  emit('update:viewLevel', 'week')
+// Swipe handling
+const touchStartX = ref(0)
+const handleTouchStart = (e) => {
+  touchStartX.value = e.touches[0].clientX
 }
-
-const navigateToDays = () => {
-  emit('update:currentDay', null)
-  emit('update:viewLevel', 'day')
-}
-
-const getWeekDateRangeString = (week) => {
-  if (!week || week.length === 0) return ''
-  const startDay = week[0].dayNumber
-  const endDay = week[week.length - 1].dayNumber
-  const monthName = monthsList[props.currentMonth].toLowerCase().slice(0, -1) + 'я' // e.g. Июль -> июля
-  return `${startDay} – ${endDay} ${monthName}`
+const handleTouchEnd = (e) => {
+  const diff = touchStartX.value - e.changedTouches[0].clientX
+  if (Math.abs(diff) > 60) {
+    if (diff > 0) nextMonth()
+    else prevMonth()
+  }
 }
 </script>
 
 <template>
   <div class="calendar-wrapper">
-    <!-- Breadcrumbs Navigation Header -->
-    <div class="breadcrumbs-container">
-      <div class="breadcrumbs">
-        <span 
-          class="breadcrumb-item" 
-          :class="{ active: viewLevel === 'month' }"
-          @click="navigateToMonths"
-        >
-          {{ year }}
-        </span>
-        
-        <template v-if="currentMonth !== null">
-          <span class="breadcrumb-separator">/</span>
-          <span 
-            class="breadcrumb-item" 
-            :class="{ active: viewLevel === 'week' }"
-            @click="navigateToWeeks"
-          >
-            {{ monthsList[currentMonth] }}
-          </span>
-        </template>
-        
-        <template v-if="currentWeekIndex !== null">
-          <span class="breadcrumb-separator">/</span>
-          <span 
-            class="breadcrumb-item" 
-            :class="{ active: viewLevel === 'day' }"
-            @click="navigateToDays"
-          >
-            Неделя {{ currentWeekIndex + 1 }}
-          </span>
-        </template>
-
-        <template v-if="currentDay !== null && viewLevel === 'tasks'">
-          <span class="breadcrumb-separator">/</span>
-          <span class="breadcrumb-item active">
-            День {{ currentDay }}
-          </span>
-        </template>
-      </div>
-    </div>
-
     <!-- MONTH LEVEL VIEW -->
     <div v-if="viewLevel === 'month'" class="months-grid">
       <div 
@@ -194,55 +187,57 @@ const getWeekDateRangeString = (week) => {
       </div>
     </div>
 
-    <!-- WEEK LEVEL VIEW -->
-    <div v-else-if="viewLevel === 'week'" class="weeks-list">
-      <div 
-        v-for="(week, idx) in computedWeeks" 
-        :key="idx" 
-        class="week-card" 
-        @click="selectWeek(idx)"
-      >
-        <div class="week-info">
-          <span class="week-title">Неделя {{ idx + 1 }}</span>
-          <span class="week-dates">{{ getWeekDateRangeString(week) }}</span>
-        </div>
-        <div class="week-stats">
-          <span 
-            class="month-tasks-badge" 
-            :class="{ empty: getTaskCountForWeek(week) === 0 }"
-          >
-            Активных: {{ getTaskCountForWeek(week) }}
-          </span>
-          <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- DAY GRID VIEW (M3 Date Picker) -->
+    <div 
+      v-else-if="viewLevel === 'days'" 
+      class="calendar-grid-container"
+      @touchstart="handleTouchStart"
+      @touchend="handleTouchEnd"
+    >
+      <!-- Back to months button -->
+      <button class="back-to-months-btn" @click="navigateToMonths">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        Все месяцы
+      </button>
+
+      <!-- Month navigation header -->
+      <div class="calendar-month-header">
+        <button class="calendar-nav-btn" @click="prevMonth">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <span class="calendar-month-title">{{ monthsList[displayMonth] }} {{ displayYear }}</span>
+        <button class="calendar-nav-btn" @click="nextMonth">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
-        </div>
+        </button>
       </div>
-    </div>
 
-    <!-- DAY LEVEL VIEW -->
-    <div v-else-if="viewLevel === 'day'" class="days-grid">
-      <div 
-        v-for="day in computedWeeks[currentWeekIndex]" 
-        :key="day.dayNumber" 
-        class="day-card" 
-        :class="{ 'has-tasks': getTaskCountForDate(day.dateString) > 0 }"
-        @click="selectDay(day.dayNumber)"
-      >
-        <div class="day-left">
-          <div class="day-number-circle">
-            {{ day.dayNumber }}
-          </div>
-          <div class="day-details">
-            <span class="day-name">{{ dayNamesFull[day.dayOfWeek] }}</span>
-            <span class="day-task-count">
-              {{ getTaskCountForDate(day.dateString) > 0 ? `Задач: ${getTaskCountForDate(day.dateString)}` : 'Нет активных задач' }}
-            </span>
-          </div>
+      <!-- Weekday headers -->
+      <div class="calendar-weekday-header">
+        <div v-for="wd in weekdayHeaders" :key="wd" class="calendar-weekday">{{ wd }}</div>
+      </div>
+
+      <!-- Day cells grid -->
+      <div class="calendar-days-grid">
+        <div 
+          v-for="(cell, idx) in calendarCells" 
+          :key="idx"
+          class="calendar-day-cell"
+          :class="{
+            'other-month': cell.otherMonth,
+            'today': cell.dateString === todayStr,
+            'selected': cell.dateString === selectedDay
+          }"
+          @click="selectDayCell(cell)"
+        >
+          {{ cell.day }}
+          <span v-if="hasDataForDate(cell.dateString)" class="calendar-day-dot"></span>
         </div>
-        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
       </div>
     </div>
   </div>
@@ -252,26 +247,36 @@ const getWeekDateRangeString = (week) => {
 .calendar-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
-.breadcrumbs-container {
+.calendar-grid-container {
   background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
+  border-radius: var(--radius-xl);
+  padding: 16px;
   box-shadow: var(--shadow);
+  border: 1px solid var(--surface-border);
+  animation: fadeSlideUp 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
-.chevron-icon {
-  color: var(--text-muted);
-  opacity: 0.7;
-  transition: var(--transition);
-}
-
-.day-card:hover .chevron-icon,
-.week-card:hover .chevron-icon {
-  transform: translateX(2px);
+.back-to-months-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
   color: var(--primary);
+  font-family: var(--font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 4px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.back-to-months-btn:active {
+  background: var(--primary-light);
 }
 </style>
