@@ -24,7 +24,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Сообщение обязательно и должно быть строкой.' })
     }
 
-    const systemPrompt = 'Ты — экспертный и заботливый ИИ-помощник от Google по дачному и домашнему планера задач. Отвечай на русском языке. Давай точные, глубокие и практичные советы по уходу за растениями, огородом, садом, ремонту и бытовым делам. Будь вежливым и структурированным. Используй эмодзи для наглядности.'
+    const systemPrompt = 'Ты — экспертный и заботливый ИИ-помощник Gemini от Google по дачному и домашнему планера задач. Отвечай на русском языке. Давай точные, глубокие и практичные советы по уходу за растениями, огородом, садом, ремонту и бытовым делам. Будь вежливым и структурированным. Используй эмодзи для наглядности.'
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
       { role: 'user', content: message }
     ]
 
-    // Primary Model: Google Gemini 2.0 Pro Experimental (Google's top intelligent Gemini)
+    // 1. Primary Model: Google Gemini 3.0 Flash
     let response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -45,13 +45,28 @@ export default async function handler(req, res) {
         'X-Title': 'Garden Planner'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-pro-exp-02-05:free',
+        model: 'google/gemini-3.0-flash',
         messages,
         temperature: 0.7
       })
     })
 
-    // Fallback 1: Google Gemini 2.0 Flash Thinking Exp (Google's reasoning Gemini)
+    // 2. Fallback: Google Gemini 2.0 Pro Experimental
+    if (!response.ok) {
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openrouterKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.0-pro-exp-02-05:free',
+          messages
+        })
+      })
+    }
+
+    // 3. Fallback: Google Gemini Flash Thinking
     if (!response.ok) {
       response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -61,21 +76,6 @@ export default async function handler(req, res) {
         },
         body: JSON.stringify({
           model: 'google/gemini-2.0-flash-thinking-exp:free',
-          messages
-        })
-      })
-    }
-
-    // Fallback 2: Google Gemini 2.0 Flash Exp
-    if (!response.ok) {
-      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openrouterKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-exp:free',
           messages
         })
       })
