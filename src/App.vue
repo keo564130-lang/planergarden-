@@ -13,7 +13,9 @@ const year = ref(2026)
 const currentMonth = ref(null)
 const currentDay = ref(null)
 const viewLevel = ref('calendar') // 'calendar' or 'tasks'
-const selectedDate = ref('')
+const todayObj = new Date()
+const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`
+const selectedDate = ref(todayStr)
 
 // Bottom navigation
 const activeTab = ref('calendar') // 'calendar', 'ai', 'settings'
