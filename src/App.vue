@@ -196,16 +196,15 @@ onMounted(async () => {
   const savedTables = localStorage.getItem('garden_planner_day_tables')
   if (savedTables) { try { dayTables.value = JSON.parse(savedTables) } catch (e) {} }
 
-  // 3. iOS keyboard fix — global level
-  // Set CSS variable for app height from visualViewport
+  // 3. iOS/Android keyboard fix — global level
+  const initialHeight = window.innerHeight
   const setAppHeight = () => {
     const vv = window.visualViewport
     const h = vv ? vv.height : window.innerHeight
     document.documentElement.style.setProperty('--app-height', h + 'px')
-    // Detect keyboard state
-    const diff = window.innerHeight - h
-    isKeyboardOpen.value = diff > 100
-    // Kill any scroll iOS tries to inject
+    // Compare against initial height (not current innerHeight which may change)
+    isKeyboardOpen.value = (initialHeight - h) > 100
+    // Kill any scroll the OS tries to inject
     window.scrollTo(0, 0)
     document.documentElement.scrollTop = 0
     document.body.scrollTop = 0
