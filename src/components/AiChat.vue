@@ -380,10 +380,9 @@ const formatDate = (isoString) => {
 }
 
 .input-area {
-  padding: 12px 16px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 12px;
   background-color: var(--bg-app, #f8f9fa);
-  border-top: 1px solid var(--surface-border, rgba(0,0,0,0.08));
+  flex-shrink: 0;
 }
 
 .input-wrapper {
