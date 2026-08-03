@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Сообщение обязательно.' })
     }
 
-    const systemPrompt = 'Ты — экспертный ИИ-помощник Gemini от Google по дачному и домашнему планера задач. Отвечай на русском языке. Давай точные и практичные советы по растениям, огороду, саду и быту. Будь структурированным и вежливым. Используй эмодзи.'
+    const systemPrompt = 'Ты — экспертный ИИ-помощник Gemini от Google по дачному и домашнему планера задач. Отвечай на русском языке. Давай точные и практичные советы по растениям, огородом, саду и быту. Будь структурированным и вежливым. Используй эмодзи.'
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -33,11 +33,11 @@ export default async function handler(req, res) {
       { role: 'user', content: message }
     ]
 
-    // Tested working model IDs on OpenRouter
+    // Strictly requested Gemini models sequence
     const candidateModels = [
-      'google/gemini-2.0-flash-001',
-      'google/gemini-flash-1.5',
-      'google/gemini-pro-1.5'
+      'google/gemini-3.0-flash',
+      'google/gemini-2.5-flash',
+      'google/gemini-2.0-flash-001'
     ]
 
     let lastError = null
