@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 
 const props = defineProps({
   chatMessages: {
@@ -145,39 +145,8 @@ const scrollToBottom = async () => {
   }
 }
 
-// Fix iOS keyboard: keep viewport still, only shrink messages area
-let vvHandler = null
-onMounted(() => {
-  const vv = window.visualViewport
-  if (vv) {
-    vvHandler = () => {
-      // On iOS when keyboard opens, visualViewport.height shrinks
-      // We counteract by NOT letting the browser scroll the page
-      requestAnimationFrame(() => {
-        window.scrollTo(0, 0)
-        document.documentElement.scrollTop = 0
-        document.body.scrollTop = 0
-      })
-    }
-    vv.addEventListener('resize', vvHandler)
-    vv.addEventListener('scroll', vvHandler)
-  }
-})
-
-onUnmounted(() => {
-  const vv = window.visualViewport
-  if (vv && vvHandler) {
-    vv.removeEventListener('resize', vvHandler)
-    vv.removeEventListener('scroll', vvHandler)
-  }
-})
-
 const handleInputFocus = () => {
-  setTimeout(() => {
-    window.scrollTo(0, 0)
-    document.body.scrollTop = 0
-    scrollToBottom()
-  }, 300)
+  setTimeout(() => scrollToBottom(), 300)
 }
 
 watch(() => props.chatMessages, () => {

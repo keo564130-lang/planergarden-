@@ -64,10 +64,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html {
+html, body {
   overflow: hidden;
-  position: fixed;
-  width: 100%;
   height: 100%;
 }
 
@@ -75,12 +73,11 @@ body {
   font-family: var(--font-family);
   background-color: hsl(140, 8%, 90%);
   color: var(--text-main);
-  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
+  margin: 0;
 }
 
 .dark-theme body {
@@ -204,17 +201,18 @@ body {
 }
 
 /* ==========================================
-   M3 Bottom Navigation Bar
+   M3 Bottom Navigation — Floating Island
    ========================================== */
 .bottom-nav {
   display: flex;
   background: var(--surface);
-  border-top: 1px solid var(--surface-border);
-  min-height: var(--bottom-nav-height);
+  min-height: 72px;
   flex-shrink: 0;
   z-index: 100;
+  margin: 0 12px 12px 12px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  position: relative;
 }
 
 .bottom-nav-item {
@@ -229,8 +227,8 @@ body {
   color: var(--text-muted);
   cursor: pointer;
   font-family: var(--font-family);
-  transition: var(--transition-fast);
-  padding: 8px 0;
+  transition: color 0.15s;
+  padding: 10px 0;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -254,69 +252,6 @@ body {
   font-weight: 700;
 }
 
-/* ==========================================
-   M3 Calendar — Month List
-   ========================================== */
-.months-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.month-card {
-  aspect-ratio: 1;
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius-xl);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  box-shadow: var(--shadow);
-  transition: var(--transition);
-  position: relative;
-  overflow: hidden;
-}
-
-.month-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--primary);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  border-radius: inherit;
-}
-
-.month-card:active::after {
-  opacity: 0.08;
-}
-
-.month-card:active {
-  transform: scale(0.96);
-}
-
-.month-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.month-tasks-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: var(--radius-full);
-  background: var(--primary-container);
-  color: var(--on-primary-container);
-}
-
-.month-tasks-badge.empty {
-  background: var(--surface-secondary);
-  color: var(--text-muted);
-}
 
 
 /* ==========================================
