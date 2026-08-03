@@ -36,7 +36,7 @@
 
     <!-- View 2: Chat Screen -->
     <transition name="slide-up">
-      <div v-if="currentChatId" class="chat-screen-view">
+      <div v-if="currentChatId" class="chat-screen-view" :style="{ transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : 'none' }">
         <div class="chat-back-bar">
           <button class="icon-button" @click="goBack" aria-label="Назад">
             <svg viewBox="0 0 24 24" class="icon"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   chatMessages: {
@@ -118,6 +118,8 @@ const emit = defineEmits(['send-message', 'new-chat', 'select-chat', 'delete-cha
 const newMessage = ref('')
 const messagesContainer = ref(null)
 const chatContainer = ref(null)
+const inputArea = ref(null)
+const keyboardOffset = ref(0)
 
 const currentChatTitle = computed(() => {
   if (!props.currentChatId) return 'Чат'
@@ -145,8 +147,38 @@ const scrollToBottom = async () => {
   }
 }
 
+// iOS keyboard: move input bar up above keyboard
+let vvHandler = null
+onMounted(() => {
+  const vv = window.visualViewport
+  if (vv) {
+    vvHandler = () => {
+      const offset = window.innerHeight - vv.height
+      keyboardOffset.value = offset > 50 ? offset : 0
+      // Prevent page scroll
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0)
+      })
+      if (keyboardOffset.value > 0) {
+        scrollToBottom()
+      }
+    }
+    vv.addEventListener('resize', vvHandler)
+  }
+})
+
+onUnmounted(() => {
+  const vv = window.visualViewport
+  if (vv && vvHandler) {
+    vv.removeEventListener('resize', vvHandler)
+  }
+})
+
 const handleInputFocus = () => {
-  setTimeout(() => scrollToBottom(), 300)
+  setTimeout(() => {
+    window.scrollTo(0, 0)
+    scrollToBottom()
+  }, 300)
 }
 
 watch(() => props.chatMessages, () => {

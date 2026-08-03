@@ -206,13 +206,11 @@ body {
 .bottom-nav {
   display: flex;
   background: var(--surface);
-  min-height: 72px;
   flex-shrink: 0;
   z-index: 100;
-  margin: 0 12px 12px 12px;
+  margin: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)) 16px;
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .bottom-nav-item {
@@ -228,7 +226,7 @@ body {
   cursor: pointer;
   font-family: var(--font-family);
   transition: color 0.15s;
-  padding: 10px 0;
+  padding: 14px 0;
   -webkit-tap-highlight-color: transparent;
 }
 

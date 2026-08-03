@@ -162,7 +162,7 @@ const tapDay = (cell) => {
   border: none;
   background: transparent;
   cursor: pointer;
-  border-radius: var(--radius-full);
+  border-radius: 8px;
   font-family: var(--font-family);
   font-size: 15px;
   font-weight: 500;
@@ -170,23 +170,13 @@ const tapDay = (cell) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
   padding: 0;
 }
 .cal-day:active:not(.other) { background: var(--surface-secondary); }
 .cal-day.other { color: var(--text-muted); opacity: 0.3; cursor: default; }
-.cal-day.today { background: var(--primary); color: var(--text-on-primary); font-weight: 700; }
-.cal-day.selected:not(.today) { background: var(--primary-light); color: var(--text-on-primary); font-weight: 700; }
-
-.cal-day.dot::after {
-  content: '';
-  position: absolute;
-  bottom: 3px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--primary);
-}
-.cal-day.today.dot::after { background: var(--text-on-primary); }
-.cal-day.selected.dot::after { background: var(--text-on-primary); }
+.cal-day.today { background: var(--primary); color: var(--text-on-primary); font-weight: 700; border-radius: 50%; }
+.cal-day.selected:not(.today) { background: var(--primary-light); color: var(--text-on-primary); font-weight: 700; border-radius: 50%; }
+.cal-day.dot { background: var(--primary-container); color: var(--on-primary-container); font-weight: 600; }
+.cal-day.today.dot { background: var(--primary); color: var(--text-on-primary); }
+.cal-day.selected.dot { background: var(--primary-light); color: var(--text-on-primary); }
 </style>
