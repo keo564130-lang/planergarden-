@@ -46,6 +46,7 @@ const isLoadingCloud = ref(true)
 // Notification state
 const notifiedTasks = ref(new Set())
 const notificationStatus = ref('загрузка')
+const isKeyboardOpen = ref(false)
 
 const updateNotificationStatus = () => {
   if (!('Notification' in window)) {
@@ -201,6 +202,9 @@ onMounted(async () => {
     const vv = window.visualViewport
     const h = vv ? vv.height : window.innerHeight
     document.documentElement.style.setProperty('--app-height', h + 'px')
+    // Detect keyboard state
+    const diff = window.innerHeight - h
+    isKeyboardOpen.value = diff > 100
     // Kill any scroll iOS tries to inject
     window.scrollTo(0, 0)
     document.documentElement.scrollTop = 0
@@ -612,7 +616,7 @@ const headerTitle = () => {
       </transition>
 
       <!-- M3 Bottom Navigation Bar -->
-      <nav class="bottom-nav">
+      <nav class="bottom-nav" v-show="!isKeyboardOpen">
         <button class="bottom-nav-item" :class="{ active: activeTab === 'calendar' }" @click="activeTab = 'calendar'">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
