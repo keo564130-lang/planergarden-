@@ -143,9 +143,11 @@ body {
     overflow: hidden;
   }
   .device-frame {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100vw;
-    height: 100vh;
-    height: 100dvh;
+    height: var(--app-height, 100dvh);
     border-radius: 0;
     border: none;
     box-shadow: none;
@@ -156,9 +158,8 @@ body {
     display: none;
   }
   .device-screen {
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
+    width: 100%;
+    height: 100%;
     border: none;
     border-radius: 0;
   }

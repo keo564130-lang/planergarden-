@@ -195,17 +195,35 @@ onMounted(async () => {
   const savedTables = localStorage.getItem('garden_planner_day_tables')
   if (savedTables) { try { dayTables.value = JSON.parse(savedTables) } catch (e) {} }
 
-  // 3. iOS keyboard fix
-  document.addEventListener('focusout', () => {
-    setTimeout(() => { window.scrollTo(0, 0); document.body.scrollTop = 0 }, 80)
-  })
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', () => {
-      if (Math.abs(window.visualViewport.height - window.innerHeight) < 10) {
-        window.scrollTo(0, 0); document.body.scrollTop = 0
-      }
-    })
+  // 3. iOS keyboard fix — global level
+  // Set CSS variable for app height from visualViewport
+  const setAppHeight = () => {
+    const vv = window.visualViewport
+    const h = vv ? vv.height : window.innerHeight
+    document.documentElement.style.setProperty('--app-height', h + 'px')
+    // Kill any scroll iOS tries to inject
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
   }
+  setAppHeight()
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setAppHeight)
+    window.visualViewport.addEventListener('scroll', setAppHeight)
+  }
+  window.addEventListener('resize', setAppHeight)
+
+  // Also reset on focusout (keyboard close)
+  document.addEventListener('focusout', () => {
+    setTimeout(setAppHeight, 100)
+  })
+  // And on focusin, prevent iOS page scroll after a delay
+  document.addEventListener('focusin', () => {
+    setTimeout(() => { window.scrollTo(0, 0) }, 50)
+    setTimeout(() => { window.scrollTo(0, 0) }, 150)
+    setTimeout(() => { window.scrollTo(0, 0) }, 300)
+  })
 
   // 4. Request notification permission
   updateNotificationStatus()

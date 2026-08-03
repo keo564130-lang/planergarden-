@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 
 const props = defineProps({
   chatMessages: {
@@ -145,41 +145,10 @@ const scrollToBottom = async () => {
   }
 }
 
-// iOS keyboard: resize container to visualViewport height
-// so flex layout keeps input above keyboard naturally
-let vvHandler = null
-onMounted(() => {
-  const vv = window.visualViewport
-  if (vv) {
-    vvHandler = () => {
-      if (chatContainer.value) {
-        // Set container height to visible viewport
-        chatContainer.value.style.height = vv.height + 'px'
-      }
-      // Kill any page scroll iOS tries to do
-      window.scrollTo(0, 0)
-      document.documentElement.scrollTop = 0
-      document.body.scrollTop = 0
-      scrollToBottom()
-    }
-    vv.addEventListener('resize', vvHandler)
-    vv.addEventListener('scroll', vvHandler)
-  }
-})
-
-onUnmounted(() => {
-  const vv = window.visualViewport
-  if (vv && vvHandler) {
-    vv.removeEventListener('resize', vvHandler)
-    vv.removeEventListener('scroll', vvHandler)
-  }
-})
-
+// Keyboard handled globally in App.vue
+// Just scroll chat to bottom when input focused
 const handleInputFocus = () => {
-  setTimeout(() => {
-    window.scrollTo(0, 0)
-    scrollToBottom()
-  }, 100)
+  setTimeout(scrollToBottom, 300)
 }
 
 watch(() => props.chatMessages, () => {
