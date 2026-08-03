@@ -12,7 +12,7 @@ import AiChat from './components/AiChat.vue'
 const year = ref(2026)
 const currentMonth = ref(null)
 const currentDay = ref(null)
-const viewLevel = ref('month') // 'month', 'days', 'tasks'
+const viewLevel = ref('calendar') // 'calendar' or 'tasks'
 const selectedDate = ref('')
 
 // Bottom navigation
@@ -268,12 +268,9 @@ const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value }
 // Navigation
 const handleBack = () => {
   if (viewLevel.value === 'tasks') {
-    viewLevel.value = 'days'
+    viewLevel.value = 'calendar'
     currentDay.value = null
     activeDayTab.value = 'tasks'
-  } else if (viewLevel.value === 'days') {
-    viewLevel.value = 'month'
-    currentMonth.value = null
   }
 }
 
@@ -448,7 +445,7 @@ const headerTitle = () => {
   if (activeTab.value === 'ai') return 'ИИ Помощник'
   if (activeTab.value === 'settings') return 'Настройки'
   if (viewLevel.value === 'tasks') return activeDayTab.value === 'tasks' ? 'Задачи на день' : 'Таблицы дня'
-  return 'Планер задач'
+  return '🌱 Планер задач'
 }
 </script>
 
@@ -460,7 +457,7 @@ const headerTitle = () => {
       <header class="app-header">
         <!-- Back button for calendar sub-navigation -->
         <button 
-          v-if="activeTab === 'calendar' && viewLevel !== 'month'" 
+          v-if="activeTab === 'calendar' && viewLevel === 'tasks'" 
           class="back-btn" 
           @click="handleBack"
           aria-label="Назад"
@@ -519,12 +516,10 @@ const headerTitle = () => {
           <!-- CALENDAR TAB -->
           <template v-if="activeTab === 'calendar'">
             <transition name="fade" mode="out-in">
-              <!-- Calendar View -->
+              <!-- Calendar Accordion View -->
               <NestedCalendar 
                 v-if="viewLevel !== 'tasks'"
                 :year="year"
-                v-model:current-month="currentMonth"
-                v-model:view-level="viewLevel"
                 :tasks="tasks"
                 :day-tables="dayTables"
                 @select-day="handleSelectDay"
@@ -601,32 +596,26 @@ const headerTitle = () => {
       <!-- M3 Bottom Navigation Bar -->
       <nav class="bottom-nav">
         <button class="bottom-nav-item" :class="{ active: activeTab === 'calendar' }" @click="activeTab = 'calendar'">
-          <div class="bottom-nav-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-          </div>
-          <span class="bottom-nav-label">Планер</span>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span class="nav-label">Планер</span>
         </button>
         <button class="bottom-nav-item" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'">
-          <div class="bottom-nav-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </div>
-          <span class="bottom-nav-label">ИИ</span>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span class="nav-label">ИИ</span>
         </button>
         <button class="bottom-nav-item" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
-          <div class="bottom-nav-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-          </div>
-          <span class="bottom-nav-label">Ещё</span>
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span class="nav-label">Ещё</span>
         </button>
       </nav>
 

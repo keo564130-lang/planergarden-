@@ -3,142 +3,93 @@ import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   year: { type: Number, default: 2026 },
-  currentMonth: { type: Number, default: null },
-  viewLevel: { type: String, required: true },
   tasks: { type: Array, required: true },
   dayTables: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits([
-  'update:currentMonth',
-  'update:viewLevel',
-  'select-day'
-])
+const emit = defineEmits(['select-day'])
 
-// Currently displayed month in day-grid view (allows swipe between months)
-const displayMonth = ref(props.currentMonth !== null ? props.currentMonth : new Date().getMonth())
-const displayYear = ref(props.year)
+const expandedMonth = ref(null) // Which month is open (0-11 or null)
 const selectedDay = ref(null)
-
-// Sync displayMonth when parent changes currentMonth
-watch(() => props.currentMonth, (val) => {
-  if (val !== null) {
-    displayMonth.value = val
-    displayYear.value = props.year
-  }
-})
 
 const monthsList = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
 ]
 
+const monthEmojis = ['❄️', '💨', '🌱', '🌸', '☀️', '🌻', '🍃', '🌾', '🍂', '🎃', '🍁', '🎄']
+
 const weekdayHeaders = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
-// Today detection
+// Today
 const today = new Date()
 const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+const todayMonth = today.getMonth()
 
-// Compute calendar grid cells for displayMonth
-const calendarCells = computed(() => {
-  const y = displayYear.value
-  const m = displayMonth.value
-  const firstDay = new Date(y, m, 1)
-  const lastDay = new Date(y, m + 1, 0)
+// Auto-expand current month on mount
+if (expandedMonth.value === null) {
+  expandedMonth.value = todayMonth
+}
+
+// Toggle accordion
+const toggleMonth = (monthIdx) => {
+  if (expandedMonth.value === monthIdx) {
+    expandedMonth.value = null
+  } else {
+    expandedMonth.value = monthIdx
+    selectedDay.value = null
+  }
+}
+
+// Build day grid for a given month
+const getCalendarCells = (monthIdx) => {
+  const y = props.year
+  const firstDay = new Date(y, monthIdx, 1)
+  const lastDay = new Date(y, monthIdx + 1, 0)
   
-  // Day of week of 1st (convert Sun=0 to Mon=0 format)
   let startDow = firstDay.getDay() - 1
   if (startDow < 0) startDow = 6
   
   const cells = []
   
-  // Previous month fill
+  // Previous month padding
   if (startDow > 0) {
-    const prevLastDay = new Date(y, m, 0).getDate()
-    const prevMonth = m === 0 ? 11 : m - 1
-    const prevYear = m === 0 ? y - 1 : y
+    const prevLastDay = new Date(y, monthIdx, 0).getDate()
     for (let i = startDow - 1; i >= 0; i--) {
-      const d = prevLastDay - i
-      cells.push({
-        day: d,
-        dateString: `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
-        otherMonth: true
-      })
+      cells.push({ day: prevLastDay - i, dateString: '', otherMonth: true })
     }
   }
   
-  // Current month
+  // Current month days
   for (let d = 1; d <= lastDay.getDate(); d++) {
     cells.push({
       day: d,
-      dateString: `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+      dateString: `${y}-${String(monthIdx + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
       otherMonth: false
     })
   }
   
-  // Next month fill (to complete 6 rows max)
-  const remaining = 42 - cells.length
-  const nextMonth = m === 11 ? 0 : m + 1
-  const nextYear = m === 11 ? y + 1 : y
+  // Next month padding (fill to complete rows)
+  const remaining = (7 - (cells.length % 7)) % 7
   for (let d = 1; d <= remaining; d++) {
-    cells.push({
-      day: d,
-      dateString: `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
-      otherMonth: true
-    })
-  }
-  
-  // Trim trailing empty row if possible
-  if (cells.length > 35) {
-    const lastRowStart = 35
-    const lastRowAllOther = cells.slice(lastRowStart).every(c => c.otherMonth)
-    if (lastRowAllOther) cells.splice(lastRowStart)
+    cells.push({ day: d, dateString: '', otherMonth: true })
   }
   
   return cells
-})
-
-// Task count helpers
-const hasDataForDate = (dateStr) => {
-  const hasTasks = props.tasks.some(t => t.date === dateStr && !t.completed)
-  const hasTables = props.dayTables.some(t => t.date === dateStr)
-  return hasTasks || hasTables
 }
 
+// Task count for month
 const getTaskCountForMonth = (monthIdx) => {
   const monthPrefix = `${props.year}-${String(monthIdx + 1).padStart(2, '0')}`
   return props.tasks.filter(t => t.date.startsWith(monthPrefix) && !t.completed).length
 }
 
-// Navigation
-const selectMonth = (monthIdx) => {
-  displayMonth.value = monthIdx
-  displayYear.value = props.year
-  selectedDay.value = null
-  emit('update:currentMonth', monthIdx)
-  emit('update:viewLevel', 'days')
-}
-
-const prevMonth = () => {
-  if (displayMonth.value === 0) {
-    displayMonth.value = 11
-    displayYear.value--
-  } else {
-    displayMonth.value--
-  }
-  selectedDay.value = null
-  emit('update:currentMonth', displayMonth.value)
-}
-
-const nextMonth = () => {
-  if (displayMonth.value === 11) {
-    displayMonth.value = 0
-    displayYear.value++
-  } else {
-    displayMonth.value++
-  }
-  selectedDay.value = null
-  emit('update:currentMonth', displayMonth.value)
+// Has data for specific date
+const hasDataForDate = (dateStr) => {
+  if (!dateStr) return false
+  const hasTasks = props.tasks.some(t => t.date === dateStr && !t.completed)
+  const hasTables = props.dayTables.some(t => t.date === dateStr)
+  return hasTasks || hasTables
 }
 
 const selectDayCell = (cell) => {
@@ -146,137 +97,291 @@ const selectDayCell = (cell) => {
   selectedDay.value = cell.dateString
   emit('select-day', cell.dateString)
 }
-
-const navigateToMonths = () => {
-  selectedDay.value = null
-  emit('update:currentMonth', null)
-  emit('update:viewLevel', 'month')
-}
-
-// Swipe handling
-const touchStartX = ref(0)
-const handleTouchStart = (e) => {
-  touchStartX.value = e.touches[0].clientX
-}
-const handleTouchEnd = (e) => {
-  const diff = touchStartX.value - e.changedTouches[0].clientX
-  if (Math.abs(diff) > 60) {
-    if (diff > 0) nextMonth()
-    else prevMonth()
-  }
-}
 </script>
 
 <template>
-  <div class="calendar-wrapper">
-    <!-- MONTH LEVEL VIEW -->
-    <div v-if="viewLevel === 'month'" class="months-grid">
-      <div 
-        v-for="(month, idx) in monthsList" 
-        :key="idx" 
-        class="month-card" 
-        @click="selectMonth(idx)"
-      >
-        <span class="month-name">{{ month }}</span>
-        <span 
-          class="month-tasks-badge" 
-          :class="{ empty: getTaskCountForMonth(idx) === 0 }"
-        >
-          {{ getTaskCountForMonth(idx) }}
-        </span>
-      </div>
-    </div>
-
-    <!-- DAY GRID VIEW (M3 Date Picker) -->
+  <div class="calendar-accordion">
     <div 
-      v-else-if="viewLevel === 'days'" 
-      class="calendar-grid-container"
-      @touchstart="handleTouchStart"
-      @touchend="handleTouchEnd"
+      v-for="(month, idx) in monthsList" 
+      :key="idx" 
+      class="month-section"
+      :class="{ expanded: expandedMonth === idx }"
     >
-      <!-- Back to months button -->
-      <button class="back-to-months-btn" @click="navigateToMonths">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-        Все месяцы
+      <!-- Month Header (tap to expand/collapse) -->
+      <button 
+        class="month-header" 
+        @click="toggleMonth(idx)"
+        :class="{ 
+          'is-current': idx === todayMonth,
+          'is-expanded': expandedMonth === idx 
+        }"
+      >
+        <div class="month-header-left">
+          <span class="month-emoji">{{ monthEmojis[idx] }}</span>
+          <span class="month-label">{{ month }}</span>
+        </div>
+        <div class="month-header-right">
+          <span 
+            v-if="getTaskCountForMonth(idx) > 0" 
+            class="month-badge"
+          >
+            {{ getTaskCountForMonth(idx) }}
+          </span>
+          <svg 
+            class="chevron-icon" 
+            :class="{ rotated: expandedMonth === idx }"
+            width="20" height="20" viewBox="0 0 24 24" 
+            fill="none" stroke="currentColor" 
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
       </button>
 
-      <!-- Month navigation header -->
-      <div class="calendar-month-header">
-        <button class="calendar-nav-btn" @click="prevMonth">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-        <span class="calendar-month-title">{{ monthsList[displayMonth] }} {{ displayYear }}</span>
-        <button class="calendar-nav-btn" @click="nextMonth">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </button>
-      </div>
+      <!-- Days Grid (accordion content) -->
+      <transition name="accordion">
+        <div v-if="expandedMonth === idx" class="days-panel">
+          <!-- Weekday headers -->
+          <div class="weekday-row">
+            <span v-for="wd in weekdayHeaders" :key="wd" class="weekday-cell">{{ wd }}</span>
+          </div>
 
-      <!-- Weekday headers -->
-      <div class="calendar-weekday-header">
-        <div v-for="wd in weekdayHeaders" :key="wd" class="calendar-weekday">{{ wd }}</div>
-      </div>
-
-      <!-- Day cells grid -->
-      <div class="calendar-days-grid">
-        <div 
-          v-for="(cell, idx) in calendarCells" 
-          :key="idx"
-          class="calendar-day-cell"
-          :class="{
-            'other-month': cell.otherMonth,
-            'today': cell.dateString === todayStr,
-            'selected': cell.dateString === selectedDay
-          }"
-          @click="selectDayCell(cell)"
-        >
-          {{ cell.day }}
-          <span v-if="hasDataForDate(cell.dateString)" class="calendar-day-dot"></span>
+          <!-- Day cells -->
+          <div class="days-grid">
+            <button
+              v-for="(cell, ci) in getCalendarCells(idx)"
+              :key="ci"
+              class="day-cell"
+              :class="{
+                'other-month': cell.otherMonth,
+                'is-today': cell.dateString === todayStr,
+                'is-selected': cell.dateString === selectedDay,
+                'has-data': hasDataForDate(cell.dateString)
+              }"
+              :disabled="cell.otherMonth"
+              @click="selectDayCell(cell)"
+            >
+              <span class="day-num">{{ cell.day }}</span>
+              <span v-if="hasDataForDate(cell.dateString)" class="day-indicator"></span>
+            </button>
+          </div>
         </div>
-      </div>
+      </transition>
     </div>
   </div>
 </template>
 
 <style scoped>
-.calendar-wrapper {
+.calendar-accordion {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.calendar-grid-container {
-  background: var(--surface);
-  border-radius: var(--radius-xl);
-  padding: 16px;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--surface-border);
-  animation: fadeSlideUp 0.3s cubic-bezier(0.2, 0, 0, 1);
-}
-
-.back-to-months-btn {
+/* ---- Month Header ---- */
+.month-header {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  border: none;
-  background: transparent;
-  color: var(--primary);
-  font-family: var(--font-family);
-  font-size: 13px;
-  font-weight: 600;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-xl);
   cursor: pointer;
-  padding: 6px 4px;
-  margin-bottom: 8px;
-  border-radius: var(--radius-sm);
-  transition: var(--transition-fast);
+  font-family: var(--font-family);
+  transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: var(--shadow);
 }
 
-.back-to-months-btn:active {
+.month-header.is-expanded {
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  border-bottom-color: transparent;
   background: var(--primary-light);
+}
+
+.month-header.is-current {
+  border-color: var(--primary);
+}
+
+.month-header:active {
+  transform: scale(0.98);
+}
+
+.month-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.month-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.month-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.month-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.month-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--text-on-primary);
+  min-width: 24px;
+  text-align: center;
+}
+
+.chevron-icon {
+  color: var(--text-muted);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.chevron-icon.rotated {
+  transform: rotate(180deg);
+}
+
+/* ---- Days Panel ---- */
+.days-panel {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  padding: 8px 12px 16px 12px;
+  box-shadow: var(--shadow);
+}
+
+.weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.weekday-cell {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.day-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: all 0.15s cubic-bezier(0.2, 0, 0, 1);
+  position: relative;
+  font-family: var(--font-family);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+  padding: 0;
+  gap: 1px;
+}
+
+.day-cell:active:not(.other-month) {
+  transform: scale(0.88);
+  background: var(--surface-secondary);
+}
+
+.day-cell.other-month {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.day-cell.is-today .day-num {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.day-cell.is-selected .day-num {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: var(--text-on-primary);
+  border-radius: 50%;
+  font-weight: 700;
+  border: none;
+}
+
+.day-indicator {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary);
+  position: absolute;
+  bottom: 2px;
+}
+
+.day-cell.is-selected .day-indicator {
+  background: var(--text-on-primary);
+}
+
+/* ---- Accordion Animation ---- */
+.accordion-enter-active {
+  animation: accordionOpen 0.35s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.accordion-leave-active {
+  animation: accordionClose 0.25s cubic-bezier(0.4, 0, 1, 1);
+}
+
+@keyframes accordionOpen {
+  0% {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    max-height: 400px;
+    transform: translateY(0);
+  }
+}
+
+@keyframes accordionClose {
+  0% {
+    opacity: 1;
+    max-height: 400px;
+  }
+  100% {
+    opacity: 0;
+    max-height: 0;
+  }
 }
 </style>

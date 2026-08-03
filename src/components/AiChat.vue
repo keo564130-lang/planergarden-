@@ -73,6 +73,7 @@
               type="text" 
               placeholder="Спросите о растениях..." 
               @keyup.enter="sendMessage"
+              @focus="handleInputFocus"
               class="message-input"
             />
             <button 
@@ -141,6 +142,15 @@ const scrollToBottom = async () => {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   }
+}
+
+// Prevent iOS viewport scroll when keyboard opens
+const handleInputFocus = (e) => {
+  setTimeout(() => {
+    e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    window.scrollTo(0, 0)
+    document.body.scrollTop = 0
+  }, 100)
 }
 
 watch(() => props.chatMessages, () => {
