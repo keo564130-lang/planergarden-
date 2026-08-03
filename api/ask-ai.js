@@ -33,10 +33,9 @@ export default async function handler(req, res) {
       { role: 'user', content: message }
     ]
 
-    // Candidate sequence: Gemini 3.5 Flash primary!
+    // Tested live OpenRouter model slugs
     const candidateModels = [
       'google/gemini-3.5-flash',
-      'google/gemini-3.6-flash',
       'google/gemini-2.5-flash'
     ]
 
@@ -61,9 +60,11 @@ export default async function handler(req, res) {
 
         if (response.ok) {
           const data = await response.json()
-          const reply = data.choices?.[0]?.message?.content
-          if (reply) {
-            return res.status(200).json({ reply })
+          const msgObj = data.choices?.[0]?.message
+          // Handle both standard content and reasoning output format
+          const reply = msgObj?.content || msgObj?.reasoning
+          if (reply && typeof reply === 'string') {
+            return res.status(200).json({ reply: reply.trim() })
           }
         } else {
           const errData = await response.json().catch(() => ({}))
