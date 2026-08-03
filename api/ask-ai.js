@@ -33,12 +33,11 @@ export default async function handler(req, res) {
       { role: 'user', content: message }
     ]
 
-    // Actual live models directly fetched from OpenRouter API
+    // Candidate sequence: Gemini 3.5 Flash primary!
     const candidateModels = [
-      'google/gemini-3.6-flash',
       'google/gemini-3.5-flash',
-      'google/gemini-2.5-flash',
-      'google/gemini-2.5-pro'
+      'google/gemini-3.6-flash',
+      'google/gemini-2.5-flash'
     ]
 
     let lastError = null
@@ -55,7 +54,8 @@ export default async function handler(req, res) {
           body: JSON.stringify({
             model,
             messages,
-            temperature: 0.7
+            temperature: 0.7,
+            max_tokens: 1500
           })
         })
 
