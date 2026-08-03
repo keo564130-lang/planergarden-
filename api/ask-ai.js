@@ -33,10 +33,12 @@ export default async function handler(req, res) {
       { role: 'user', content: message }
     ]
 
-    // Verified live OpenRouter Gemini model IDs
+    // Official active OpenRouter Gemini models
     const candidateModels = [
+      'google/gemini-2.0-flash-lite-001',
       'google/gemini-2.0-flash-001',
-      'google/gemini-2.0-pro-exp-02-05:free'
+      'google/gemini-flash-1.5-8b',
+      'google/gemini-pro-1.5'
     ]
 
     let lastError = null
@@ -72,7 +74,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(500).json({ error: `Не удалось получить ответ Gemini: ${lastError}` })
+    return res.status(500).json({ error: `Ошибка Gemini API: ${lastError}` })
 
   } catch (error) {
     console.error('Ask AI Handler Error:', error)
