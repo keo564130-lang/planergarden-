@@ -30,7 +30,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Сообщение обязательно.' })
     }
 
-    const systemPrompt = 'Ты — экспертный ИИ-помощник Gemini от Google по дачному и домашнему планера задач. Отвечай на русском языке. Давай точные и практичные советы по растениям, огородом, саду и быту. Будь структурированным и вежливым. Используй эмодзи.'
+    const systemPrompt = `Ты — универсальный умный ИИ-помощник Gemini от Google.
+Ты прекрасно разбираешься в математике, физике, логике, программировании, бытовых делах, а также в садоводстве и планировании задач.
+Правила ответа:
+1. Отвечай точным, ясным и структурированным языком.
+2. Используй красивое Markdown-форматирование: **жирный выделенный текст** для главных мыслей, списки (пункты), формулы или списки шагов при расчётах и математике.
+3. Отвечай на русском языке.
+4. При математических и логических вопросах приводи поэтапное решение.`
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -41,7 +47,9 @@ export default async function handler(req, res) {
       { role: 'user', content: message }
     ]
 
+    // Models sequence: Gemini 3.6 Flash primary, Gemini 3.5 Flash backup!
     const candidateModels = [
+      'google/gemini-3.6-flash',
       'google/gemini-3.5-flash',
       'google/gemini-2.5-flash'
     ]
