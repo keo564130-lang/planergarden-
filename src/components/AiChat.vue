@@ -1,5 +1,5 @@
 <template>
-  <div class="ai-chat-container">
+  <div class="ai-chat-container" ref="chatContainer">
     <!-- View 1: Chat List -->
     <transition name="slide-fade">
       <div v-if="!currentChatId" class="chat-list-view">
@@ -92,7 +92,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   chatMessages: {
@@ -117,6 +117,7 @@ const emit = defineEmits(['send-message', 'new-chat', 'select-chat', 'delete-cha
 
 const newMessage = ref('')
 const messagesContainer = ref(null)
+const chatContainer = ref(null)
 
 const currentChatTitle = computed(() => {
   if (!props.currentChatId) return 'Чат'
@@ -144,13 +145,39 @@ const scrollToBottom = async () => {
   }
 }
 
-// Prevent iOS viewport scroll when keyboard opens
-const handleInputFocus = (e) => {
+// Fix iOS keyboard: keep viewport still, only shrink messages area
+let vvHandler = null
+onMounted(() => {
+  const vv = window.visualViewport
+  if (vv) {
+    vvHandler = () => {
+      // On iOS when keyboard opens, visualViewport.height shrinks
+      // We counteract by NOT letting the browser scroll the page
+      requestAnimationFrame(() => {
+        window.scrollTo(0, 0)
+        document.documentElement.scrollTop = 0
+        document.body.scrollTop = 0
+      })
+    }
+    vv.addEventListener('resize', vvHandler)
+    vv.addEventListener('scroll', vvHandler)
+  }
+})
+
+onUnmounted(() => {
+  const vv = window.visualViewport
+  if (vv && vvHandler) {
+    vv.removeEventListener('resize', vvHandler)
+    vv.removeEventListener('scroll', vvHandler)
+  }
+})
+
+const handleInputFocus = () => {
   setTimeout(() => {
-    e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     window.scrollTo(0, 0)
     document.body.scrollTop = 0
-  }, 100)
+    scrollToBottom()
+  }, 300)
 }
 
 watch(() => props.chatMessages, () => {

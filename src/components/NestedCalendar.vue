@@ -9,196 +9,330 @@ const props = defineProps({
 
 const emit = defineEmits(['select-day'])
 
+const level = ref('months') // 'months' or 'days'
+const activeMonth = ref(null)
 const selectedDay = ref(null)
 
-const months = [
-  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
+const monthNames = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
 ]
 
-const wd = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
+const wd = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
 const today = new Date()
-const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+const todayYear = today.getFullYear()
+const todayMonth = today.getMonth()
+const todayDate = today.getDate()
+const todayStr = `${todayYear}-${String(todayMonth + 1).padStart(2, '0')}-${String(todayDate).padStart(2, '0')}`
 
-const getGrid = (mi) => {
+// Count tasks for month badge
+const getMonthTaskCount = (mi) => {
+  const prefix = `${props.year}-${String(mi + 1).padStart(2, '0')}`
+  return props.tasks.filter(t => t.date && t.date.startsWith(prefix) && !t.completed).length
+}
+
+// Open month → day grid
+const openMonth = (mi) => {
+  activeMonth.value = mi
+  level.value = 'days'
+}
+
+// Back to months
+const goBack = () => {
+  level.value = 'months'
+  activeMonth.value = null
+}
+
+// Navigate months with arrows
+const prevMonth = () => {
+  if (activeMonth.value > 0) activeMonth.value--
+}
+const nextMonth = () => {
+  if (activeMonth.value < 11) activeMonth.value++
+}
+
+// Build grid for active month
+const dayGrid = computed(() => {
+  if (activeMonth.value === null) return []
   const y = props.year
+  const mi = activeMonth.value
   const first = new Date(y, mi, 1)
   const last = new Date(y, mi + 1, 0).getDate()
   let dow = first.getDay() - 1
   if (dow < 0) dow = 6
+
   const cells = []
-  for (let i = 0; i < dow; i++) cells.push(null)
-  for (let d = 1; d <= last; d++) cells.push(d)
+  // Padding
+  const prevLast = new Date(y, mi, 0).getDate()
+  for (let i = dow - 1; i >= 0; i--) {
+    cells.push({ day: prevLast - i, current: false, dateStr: '' })
+  }
+  // Days
+  for (let d = 1; d <= last; d++) {
+    const ds = `${y}-${String(mi + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    cells.push({ day: d, current: true, dateStr: ds })
+  }
+  // Fill remaining row
+  const rem = (7 - (cells.length % 7)) % 7
+  for (let d = 1; d <= rem; d++) {
+    cells.push({ day: d, current: false, dateStr: '' })
+  }
   return cells
-}
+})
 
-const dateStr = (mi, d) => {
-  return `${props.year}-${String(mi + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-}
-
-const hasData = (mi, d) => {
-  const ds = dateStr(mi, d)
+const hasData = (ds) => {
+  if (!ds) return false
   return props.tasks.some(t => t.date === ds && !t.completed) || props.dayTables.some(t => t.date === ds)
 }
 
-const isToday = (mi, d) => dateStr(mi, d) === todayStr
-
-const selectDay = (mi, d) => {
-  const ds = dateStr(mi, d)
-  selectedDay.value = ds
-  emit('select-day', ds)
+const tapDay = (cell) => {
+  if (!cell.current) return
+  selectedDay.value = cell.dateStr
+  emit('select-day', cell.dateStr)
 }
 </script>
 
 <template>
-  <div class="year-calendar">
-    <div class="year-header">
-      <h2 class="year-title">{{ year }}</h2>
+  <div class="calendar-root">
+    <!-- LEVEL 1: Month cards -->
+    <div v-if="level === 'months'" class="months-view">
+      <div class="months-grid">
+        <button
+          v-for="(name, mi) in monthNames"
+          :key="mi"
+          class="month-card"
+          :class="{ 'is-current': mi === todayMonth && year === todayYear }"
+          @click="openMonth(mi)"
+        >
+          <span class="month-name">{{ name }}</span>
+          <span v-if="getMonthTaskCount(mi) > 0" class="month-badge">{{ getMonthTaskCount(mi) }}</span>
+        </button>
+      </div>
     </div>
 
-    <div class="months-grid">
-      <div v-for="(name, mi) in months" :key="mi" class="mini-month">
-        <div class="mini-month-name">{{ name }}</div>
-        <div class="mini-weekdays">
-          <span v-for="w in wd" :key="w">{{ w }}</span>
-        </div>
-        <div class="mini-days">
-          <span
-            v-for="(cell, ci) in getGrid(mi)"
-            :key="ci"
-            class="mini-day"
-            :class="{
-              empty: cell === null,
-              today: cell && isToday(mi, cell),
-              selected: cell && dateStr(mi, cell) === selectedDay,
-              'has-dot': cell && hasData(mi, cell),
-              weekend: cell && ((ci % 7 === 5) || (ci % 7 === 6))
-            }"
-            @click="cell && selectDay(mi, cell)"
-          >{{ cell || '' }}</span>
-        </div>
+    <!-- LEVEL 2: Day grid -->
+    <div v-else class="days-view">
+      <div class="days-header">
+        <button class="nav-arrow" @click="prevMonth" :disabled="activeMonth === 0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="days-title">{{ monthNames[activeMonth] }} {{ year }}</span>
+        <button class="nav-arrow" @click="nextMonth" :disabled="activeMonth === 11">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+      <div class="weekday-row">
+        <span v-for="w in wd" :key="w" class="weekday-label">{{ w }}</span>
+      </div>
+
+      <div class="day-grid">
+        <button
+          v-for="(cell, ci) in dayGrid"
+          :key="ci"
+          class="day-btn"
+          :class="{
+            'other': !cell.current,
+            'today': cell.dateStr === todayStr,
+            'selected': cell.dateStr === selectedDay,
+            'has-dot': hasData(cell.dateStr)
+          }"
+          :disabled="!cell.current"
+          @click="tapDay(cell)"
+        >
+          <span class="day-number">{{ cell.day }}</span>
+          <span v-if="hasData(cell.dateStr)" class="dot"></span>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.year-calendar {
+.calendar-root {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-.year-header {
+/* === Months Grid === */
+.months-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.month-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 8px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-family: var(--font-family);
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: var(--shadow);
+  position: relative;
+}
+
+.month-card:active {
+  transform: scale(0.96);
+}
+
+.month-card.is-current {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.month-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.month-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--text-on-primary);
+}
+
+/* === Days View === */
+.days-view {
+  display: flex;
+  flex-direction: column;
+}
+
+.days-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 4px;
+  padding: 0 0 16px 0;
 }
 
-.year-title {
-  font-size: 22px;
+.days-title {
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-main);
-  margin: 0;
 }
 
-.months-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.mini-month {
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: var(--radius-md);
-  padding: 10px;
-  box-shadow: var(--shadow);
-}
-
-.mini-month-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--primary);
-  text-transform: lowercase;
-  margin-bottom: 6px;
-}
-
-.mini-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  margin-bottom: 2px;
-}
-
-.mini-weekdays span {
-  text-align: center;
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--text-muted);
-  padding: 2px 0;
-  text-transform: uppercase;
-}
-
-.mini-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-}
-
-.mini-day {
-  text-align: center;
-  font-size: 11px;
-  font-weight: 500;
+.nav-arrow {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: transparent;
   color: var(--text-main);
-  padding: 3px 0;
   cursor: pointer;
-  border-radius: 50%;
-  position: relative;
-  line-height: 1;
-  aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.mini-day:active:not(.empty) {
-  background: var(--surface-secondary);
-}
-
-.mini-day.empty {
+.nav-arrow:disabled {
+  opacity: 0.3;
   cursor: default;
 }
 
-.mini-day.weekend {
-  color: var(--text-muted);
+.nav-arrow:active:not(:disabled) {
+  background: var(--surface-secondary);
 }
 
-.mini-day.today {
+.weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.weekday-label {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+
+.day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.day-btn {
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-family: var(--font-family);
+  padding: 0;
+  gap: 2px;
+}
+
+.day-btn:active:not(.other) {
+  background: var(--surface-secondary);
+}
+
+.day-number {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-main);
+  line-height: 1;
+}
+
+.day-btn.other .day-number {
+  color: var(--text-muted);
+  opacity: 0.35;
+}
+
+.day-btn.today {
   background: var(--primary);
+}
+
+.day-btn.today .day-number {
   color: var(--text-on-primary);
   font-weight: 700;
 }
 
-.mini-day.selected {
+.day-btn.selected {
   outline: 2px solid var(--primary);
   outline-offset: -1px;
-  font-weight: 700;
 }
 
-.mini-day.has-dot::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 3px;
-  height: 3px;
+.day-btn.selected .day-number {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.day-btn.today.selected {
+  outline-color: var(--text-on-primary);
+}
+
+.day-btn.today.selected .day-number {
+  color: var(--text-on-primary);
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--primary);
+  position: absolute;
+  bottom: 4px;
 }
 
-.mini-day.today.has-dot::after {
+.day-btn.today .dot {
   background: var(--text-on-primary);
 }
 </style>
