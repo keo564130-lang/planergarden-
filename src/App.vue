@@ -863,7 +863,7 @@ const headerTitle = () => {
 .theme-toggle-btn {
   background: transparent;
   border: none;
-  color: var(--header-text);
+  color: var(--text-main);
   cursor: pointer;
   width: 40px;
   height: 40px;

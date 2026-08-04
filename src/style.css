@@ -17,10 +17,6 @@
   --surface-border: hsl(140, 10%, 88%);
   --surface-container: hsl(140, 10%, 92%);
 
-  --header-bg: hsl(142, 44%, 40%);
-  --header-text: hsl(0, 0%, 100%);
-  --header-border: hsl(142, 44%, 34%);
-
   --text-main: hsl(140, 30%, 12%);
   --text-muted: hsl(140, 8%, 46%);
   --text-on-primary: hsl(0, 0%, 100%);
@@ -52,10 +48,6 @@
   --surface-secondary: hsl(140, 8%, 16%);
   --surface-border: hsl(140, 6%, 20%);
   --surface-container: hsl(140, 6%, 14%);
-
-  --header-bg: hsl(140, 8%, 12%);
-  --header-text: hsl(140, 15%, 93%);
-  --header-border: hsl(140, 6%, 20%);
   --text-main: hsl(140, 15%, 93%);
   --text-muted: hsl(140, 6%, 55%);
   --primary-light: hsl(var(--primary-hue), 28%, 16%);
@@ -82,7 +74,9 @@ body {
   background-color: var(--bg-app);
   color: var(--text-main);
   font-family: var(--font-family);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 /* ==========================================
@@ -180,20 +174,22 @@ body {
   padding-right: calc(20px + env(safe-area-inset-right, 0px));
   padding-left: calc(20px + env(safe-area-inset-left, 0px));
   padding-bottom: 10px;
-  background: var(--header-bg);
-  border-bottom: 1px solid var(--header-border);
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   z-index: 10;
   flex-shrink: 0;
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .app-title {
   font-size: 20px;
   font-weight: 700;
-  color: var(--header-text);
+  color: var(--text-main);
   letter-spacing: -0.3px;
   transition: color 0.3s ease;
 }
