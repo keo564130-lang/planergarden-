@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { supabase } from './supabase'
 import NestedCalendar from './components/NestedCalendar.vue'
 import TaskList from './components/TaskList.vue'
@@ -45,6 +45,16 @@ const isAiTyping = ref(false)
 // Auth state
 const currentUser = ref(null)
 const isLoadingCloud = ref(true)
+const authUsername = ref('')
+const authPassword = ref('')
+const authMode = ref('login') // 'login' or 'register'
+const authError = ref('')
+const authLoading = ref(false)
+const isRealAccount = computed(() => {
+  if (!currentUser.value) return false
+  const email = currentUser.value.email || ''
+  return email && email.includes('@') && !currentUser.value.is_anonymous
+})
 
 // Notification state
 const notifiedTasks = ref(new Set())
@@ -520,10 +530,98 @@ const handleSendMessage = async (payload) => {
   }
 }
 
+// Auth: login / register / logout
+const handleAuth = async () => {
+  const username = authUsername.value.trim().toLowerCase()
+  const password = authPassword.value
+  authError.value = ''
+  
+  if (!username || username.length < 2) { authError.value = 'Имя минимум 2 символа'; return }
+  if (!password || password.length < 4) { authError.value = 'Пароль минимум 4 символа'; return }
+  if (!/^[a-zA-Zа-яА-ЯёЁ0-9_]+$/.test(username)) { authError.value = 'Имя: только буквы, цифры и _'; return }
+  
+  const fakeEmail = `${username}@planergarden.app`
+  authLoading.value = true
+  
+  try {
+    if (authMode.value === 'register') {
+      // Try to upgrade anonymous user to permanent
+      if (currentUser.value && currentUser.value.is_anonymous) {
+        const { data, error } = await supabase.auth.updateUser({ email: fakeEmail, password })
+        if (error) {
+          if (error.message.includes('already registered') || error.message.includes('already exists')) {
+            authError.value = 'Это имя уже занято. Выберите другое.'
+          } else {
+            authError.value = error.message
+          }
+          return
+        }
+        currentUser.value = data.user
+      } else {
+        // No anonymous session, sign up fresh
+        const { data, error } = await supabase.auth.signUp({ email: fakeEmail, password })
+        if (error) {
+          if (error.message.includes('already registered')) {
+            authError.value = 'Это имя уже занято.'
+          } else {
+            authError.value = error.message
+          }
+          return
+        }
+        currentUser.value = data.user
+        await fetchCloudData()
+      }
+      authUsername.value = ''
+      authPassword.value = ''
+    } else {
+      // Login
+      const { data, error } = await supabase.auth.signInWithPassword({ email: fakeEmail, password })
+      if (error) {
+        if (error.message.includes('Invalid login')) {
+          authError.value = 'Неверное имя или пароль'
+        } else {
+          authError.value = error.message
+        }
+        return
+      }
+      currentUser.value = data.user
+      await fetchCloudData()
+      authUsername.value = ''
+      authPassword.value = ''
+    }
+  } catch (err) {
+    authError.value = err.message
+  } finally {
+    authLoading.value = false
+  }
+}
+
+const handleLogout = async () => {
+  if (!supabase) return
+  try {
+    await supabase.auth.signOut()
+    currentUser.value = null
+    tasks.value = []
+    dayTables.value = []
+    aiChats.value = []
+    aiMessages.value = []
+    allAiMessages.value = {}
+    currentChatId.value = null
+    activeTab.value = 'calendar'
+  } catch (err) {
+    console.error('Logout error:', err)
+  }
+}
+
+const displayUsername = computed(() => {
+  if (!currentUser.value?.email) return ''
+  return currentUser.value.email.replace('@planergarden.app', '')
+})
+
 // Computed header title
 const headerTitle = () => {
   if (activeTab.value === 'ai') return 'ИИ Помощник'
-  if (activeTab.value === 'settings') return 'Настройки'
+  if (activeTab.value === 'settings') return isRealAccount.value ? 'Профиль' : 'Аккаунт'
   if (viewLevel.value === 'tasks') return activeDayTab.value === 'tasks' ? 'Задачи на день' : 'Таблицы дня'
   return '🌱 Планер задач'
 }
@@ -643,13 +741,46 @@ const headerTitle = () => {
           />
 
           <!-- SETTINGS TAB (placeholder) -->
-          <div v-if="activeTab === 'settings'" class="settings-placeholder">
-            <div class="empty-state">
-              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-              <span class="empty-text">Настройки скоро появятся.<br>Уведомления: {{ notificationStatus }}</span>
+          <div v-if="activeTab === 'settings'" class="settings-page">
+            <div v-if="isRealAccount" class="settings-section">
+              <div class="profile-card">
+                <div class="profile-avatar">{{ displayUsername.charAt(0).toUpperCase() }}</div>
+                <div class="profile-info">
+                  <span class="profile-name">{{ displayUsername }}</span>
+                  <span class="profile-sub">Данные синхронизируются ☁️</span>
+                </div>
+              </div>
+              <div class="settings-item" @click="toggleDarkMode">
+                <span>🌙 Тёмная тема</span>
+                <div class="toggle-switch" :class="{ on: isDarkMode }"><div class="toggle-knob"></div></div>
+              </div>
+              <div class="settings-item">
+                <span>🔔 Уведомления</span>
+                <span class="settings-value">{{ notificationStatus }}</span>
+              </div>
+              <button class="auth-btn logout-btn" @click="handleLogout">Выйти из аккаунта</button>
+            </div>
+            <div v-else class="settings-section">
+              <div class="auth-card">
+                <div class="auth-icon">🔐</div>
+                <h3 class="auth-title">{{ authMode === 'login' ? 'Вход в аккаунт' : 'Создание аккаунта' }}</h3>
+                <p class="auth-subtitle">{{ authMode === 'login' ? 'Войдите чтобы синхронизировать данные' : 'Придумайте имя и пароль' }}</p>
+                <div class="auth-form">
+                  <input v-model="authUsername" type="text" :placeholder="authMode === 'login' ? 'Ваше имя' : 'Придумайте имя'" class="auth-input" autocomplete="username" autocapitalize="off" />
+                  <input v-model="authPassword" type="password" :placeholder="authMode === 'login' ? 'Пароль' : 'Придумайте пароль'" class="auth-input" autocomplete="current-password" @keyup.enter="handleAuth" />
+                  <div v-if="authError" class="auth-error">{{ authError }}</div>
+                  <button class="auth-btn primary-btn" @click="handleAuth" :disabled="authLoading">
+                    {{ authLoading ? '⏳' : (authMode === 'login' ? 'Войти' : 'Создать аккаунт') }}
+                  </button>
+                </div>
+                <button class="auth-switch" @click="authMode = authMode === 'login' ? 'register' : 'login'; authError = ''">
+                  {{ authMode === 'login' ? 'Нет аккаунта? Создать' : 'Уже есть аккаунт? Войти' }}
+                </button>
+              </div>
+              <div class="settings-item" @click="toggleDarkMode">
+                <span>🌙 Тёмная тема</span>
+                <div class="toggle-switch" :class="{ on: isDarkMode }"><div class="toggle-knob"></div></div>
+              </div>
             </div>
           </div>
         </template>
@@ -760,5 +891,84 @@ const headerTitle = () => {
 .day-tab-btn.active {
   color: var(--primary);
   border-bottom-color: var(--primary);
+}
+
+/* Auth & Settings */
+.settings-page { padding: 16px; overflow-y: auto; flex: 1; }
+.settings-section { display: flex; flex-direction: column; gap: 12px; }
+
+.profile-card {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--surface); border-radius: var(--radius-lg);
+  padding: 20px; border: 1px solid var(--surface-border);
+}
+.profile-avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--primary); color: var(--text-on-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; font-family: var(--font-family);
+}
+.profile-info { display: flex; flex-direction: column; gap: 2px; }
+.profile-name { font-size: 18px; font-weight: 700; color: var(--text-main); font-family: var(--font-family); }
+.profile-sub { font-size: 13px; color: var(--text-muted); font-family: var(--font-family); }
+
+.settings-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border-radius: var(--radius-md);
+  padding: 16px; border: 1px solid var(--surface-border);
+  cursor: pointer; font-family: var(--font-family); font-size: 15px; color: var(--text-main);
+}
+.settings-value { font-size: 13px; color: var(--text-muted); }
+
+.toggle-switch {
+  width: 48px; height: 28px; border-radius: 14px;
+  background: var(--surface-border); position: relative; transition: var(--transition);
+}
+.toggle-switch.on { background: var(--primary); }
+.toggle-knob {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: white; position: absolute; top: 3px; left: 3px;
+  transition: var(--transition); box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-switch.on .toggle-knob { left: 23px; }
+
+.auth-card {
+  background: var(--surface); border-radius: var(--radius-lg);
+  padding: 32px 24px; text-align: center;
+  border: 1px solid var(--surface-border);
+}
+.auth-icon { font-size: 48px; margin-bottom: 12px; }
+.auth-title { font-size: 20px; font-weight: 700; color: var(--text-main); margin: 0 0 6px; font-family: var(--font-family); }
+.auth-subtitle { font-size: 14px; color: var(--text-muted); margin: 0 0 20px; font-family: var(--font-family); }
+
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-input {
+  width: 100%; padding: 14px 16px; border-radius: var(--radius-md);
+  border: 1px solid var(--surface-border); background: var(--bg-app);
+  color: var(--text-main); font-size: 15px; font-family: var(--font-family);
+  outline: none; transition: var(--transition); box-sizing: border-box;
+}
+.auth-input:focus { border-color: var(--primary); }
+
+.auth-btn {
+  width: 100%; padding: 14px; border-radius: var(--radius-md);
+  border: none; font-size: 15px; font-weight: 600;
+  cursor: pointer; font-family: var(--font-family); transition: var(--transition);
+}
+.primary-btn { background: var(--primary); color: var(--text-on-primary); }
+.primary-btn:active { opacity: 0.8; }
+.primary-btn:disabled { opacity: 0.5; }
+.logout-btn { background: transparent; color: #e53935; border: 1px solid #e53935; margin-top: 8px; }
+
+.auth-error {
+  background: #fce4ec; color: #c62828; padding: 10px 14px;
+  border-radius: var(--radius-sm); font-size: 13px; text-align: left;
+  font-family: var(--font-family);
+}
+
+.auth-switch {
+  background: none; border: none; color: var(--primary);
+  font-size: 14px; cursor: pointer; margin-top: 16px;
+  font-family: var(--font-family); text-decoration: underline;
 }
 </style>
