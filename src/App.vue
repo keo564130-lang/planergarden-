@@ -166,31 +166,34 @@ const fetchCloudData = async () => {
 }
 
 // Scheduler: checks tasks time matching system time
-const checkNotifications = () => {
+const checkNotifications = async () => {
   if (!('Notification' in window) || Notification.permission !== 'granted') return
   const now = new Date()
   const currentHrs = now.getHours()
   const currentMins = now.getMinutes()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
-  tasks.value.forEach(async (task) => {
-    if (!task.time || task.completed || task.date !== todayStr) return
-    if (notifiedTasks.value.has(task.id)) return
+  for (const task of tasks.value) {
+    if (!task.time || task.completed || task.date !== todayStr) continue
+    if (notifiedTasks.value.has(task.id)) continue
     const [taskHrs, taskMins] = task.time.split(':').map(Number)
     if (currentHrs === taskHrs && currentMins === taskMins) {
       const title = 'Дачный планер 🌸'
-      const options = { body: `Пора выполнять задачу: "${task.title}"`, icon: '/favicon.ico', tag: `task-reminder-${task.id}`, renotify: true }
+      const options = { body: `Пора выполнять задачу: "${task.title}"`, icon: '/icon-192.png', badge: '/icon-192.png', tag: `task-${task.id}`, renotify: true }
       try {
-        new Notification(title, options)
-      } catch (e) {
-        if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+        // iOS PWA requires serviceWorker.showNotification — new Notification() is blocked
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
           const reg = await navigator.serviceWorker.ready
           await reg.showNotification(title, options)
+        } else {
+          new Notification(title, options)
         }
+      } catch (e) {
+        console.warn('Notification failed:', e.message)
       }
       notifiedTasks.value.add(task.id)
     }
-  })
+  }
 }
 
 // Load cache and setup Auth on mount
@@ -301,6 +304,10 @@ onMounted(async () => {
   } else {
     isLoadingCloud.value = false
   }
+
+  // 6. Start notification scheduler — check every 30 seconds
+  checkNotifications()
+  setInterval(checkNotifications, 30000)
 })
 
 // Keep local storage in sync (with error protection)
