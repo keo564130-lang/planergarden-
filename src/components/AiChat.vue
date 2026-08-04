@@ -52,6 +52,10 @@
               class="message-wrapper"
               :class="msg.role === 'user' ? 'is-user' : 'is-ai'"
             >
+              <!-- Image in message -->
+              <div v-if="msg.image" class="message-image-wrap">
+                <img :src="msg.image" class="message-image" alt="Фото" />
+              </div>
               <div class="message-bubble" v-html="renderMarkdown(msg.content)"></div>
               <div class="message-time">{{ formatTime(msg.created_at) }}</div>
             </div>
@@ -65,7 +69,25 @@
         </div>
 
         <div class="input-area">
+          <!-- Image preview -->
+          <div v-if="pendingImage" class="image-preview">
+            <img :src="pendingImage" class="preview-thumb" alt="Превью" />
+            <button class="preview-remove" @click="removeImage" aria-label="Убрать фото">&times;</button>
+          </div>
+
           <div class="input-wrapper">
+            <!-- Photo button -->
+            <button 
+              type="button" 
+              class="input-action-btn" 
+              @click="triggerImagePicker"
+              aria-label="Прикрепить фото"
+            >
+              <svg viewBox="0 0 24 24" class="action-icon">
+                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+              </svg>
+            </button>
+
             <input 
               v-model="newMessage" 
               type="text" 
@@ -74,9 +96,28 @@
               @focus="handleInputFocus"
               class="message-input"
             />
+
+            <!-- Mic button -->
+            <button 
+              type="button" 
+              class="input-action-btn mic-btn" 
+              :class="{ recording: isRecording }"
+              @click="toggleVoice"
+              aria-label="Голосовой ввод"
+            >
+              <svg v-if="!isRecording" viewBox="0 0 24 24" class="action-icon">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/>
+                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+              </svg>
+              <svg v-else viewBox="0 0 24 24" class="action-icon pulse-mic">
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+              </svg>
+            </button>
+
+            <!-- Send button -->
             <button 
               class="send-button" 
-              :disabled="!newMessage.trim()" 
+              :disabled="!newMessage.trim() && !pendingImage" 
               @click="sendMessage"
               aria-label="Отправить"
             >
@@ -84,6 +125,15 @@
             </button>
           </div>
         </div>
+
+        <!-- Hidden file input -->
+        <input 
+          ref="fileInput"
+          type="file" 
+          accept="image/*" 
+          style="display:none" 
+          @change="handleImageSelected"
+        />
       </div>
     </transition>
   </div>
@@ -116,6 +166,10 @@ const emit = defineEmits(['send-message', 'new-chat', 'select-chat', 'delete-cha
 const newMessage = ref('')
 const messagesContainer = ref(null)
 const chatContainer = ref(null)
+const fileInput = ref(null)
+const pendingImage = ref(null)
+const isRecording = ref(false)
+let recognition = null
 
 const currentChatTitle = computed(() => {
   if (!props.currentChatId) return 'Чат'
@@ -130,10 +184,100 @@ const goBack = () => {
   emit('select-chat', null)
 }
 
+// ---- Image handling ----
+const triggerImagePicker = () => {
+  if (fileInput.value) fileInput.value.click()
+}
+
+const handleImageSelected = (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Фото слишком большое (макс. 5 МБ)')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (ev) => {
+    pendingImage.value = ev.target.result // base64 data URL
+  }
+  reader.readAsDataURL(file)
+  // Reset input so same file can be picked again
+  e.target.value = ''
+}
+
+const removeImage = () => {
+  pendingImage.value = null
+}
+
+// ---- Voice recognition ----
+const toggleVoice = () => {
+  if (isRecording.value) {
+    stopVoice()
+  } else {
+    startVoice()
+  }
+}
+
+const startVoice = () => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  if (!SpeechRecognition) {
+    alert('Ваш браузер не поддерживает голосовой ввод. Попробуйте Chrome или Safari.')
+    return
+  }
+  recognition = new SpeechRecognition()
+  recognition.lang = 'ru-RU'
+  recognition.interimResults = true
+  recognition.continuous = true
+  recognition.maxAlternatives = 1
+
+  let finalTranscript = ''
+
+  recognition.onresult = (event) => {
+    let interim = ''
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript + ' '
+      } else {
+        interim = transcript
+      }
+    }
+    newMessage.value = (finalTranscript + interim).trim()
+  }
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error)
+    isRecording.value = false
+  }
+
+  recognition.onend = () => {
+    isRecording.value = false
+  }
+
+  recognition.start()
+  isRecording.value = true
+}
+
+const stopVoice = () => {
+  if (recognition) {
+    recognition.stop()
+    recognition = null
+  }
+  isRecording.value = false
+}
+
+// ---- Send message ----
 const sendMessage = () => {
-  if (!newMessage.value.trim()) return
-  emit('send-message', newMessage.value.trim())
+  const text = newMessage.value.trim()
+  const image = pendingImage.value
+  if (!text && !image) return
+  
+  emit('send-message', { text: text || '📷 Фото', image: image || null })
   newMessage.value = ''
+  pendingImage.value = null
+  
+  // Stop recording if active
+  if (isRecording.value) stopVoice()
 }
 
 const scrollToBottom = async () => {
@@ -370,6 +514,19 @@ const renderMarkdown = (text) => {
   align-items: flex-start;
 }
 
+/* Image in message */
+.message-image-wrap {
+  margin-bottom: 6px;
+}
+
+.message-image {
+  max-width: 220px;
+  max-height: 200px;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
 .message-bubble {
   padding: 12px 16px;
   font-size: 15px;
@@ -421,10 +578,46 @@ const renderMarkdown = (text) => {
   padding: 0 4px;
 }
 
+/* Input Area */
 .input-area {
   padding: 8px 12px;
   background-color: var(--bg-app, #f8f9fa);
   flex-shrink: 0;
+}
+
+/* Image preview above input */
+.image-preview {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 8px;
+  margin-left: 4px;
+}
+
+.preview-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.preview-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ba1a1a;
+  color: #fff;
+  border: 2px solid var(--bg-app, #f8f9fa);
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
 }
 
 .input-wrapper {
@@ -432,8 +625,51 @@ const renderMarkdown = (text) => {
   align-items: center;
   background-color: var(--surface, #ffffff);
   border-radius: 28px;
-  padding: 4px 4px 4px 20px;
+  padding: 4px 4px 4px 4px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  gap: 2px;
+}
+
+.input-action-btn {
+  background: transparent;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted, #74776d);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.input-action-btn:hover {
+  background-color: var(--surface-secondary, #e1e3de);
+  color: var(--text-main, #1a1c18);
+}
+
+.action-icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+/* Mic recording state */
+.mic-btn.recording {
+  background-color: #ba1a1a;
+  color: #ffffff;
+}
+
+.pulse-mic {
+  animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .message-input {
@@ -444,6 +680,8 @@ const renderMarkdown = (text) => {
   font-size: 16px;
   color: var(--text-main, #1a1c18);
   font-family: inherit;
+  min-width: 0;
+  padding: 0 4px;
 }
 
 .message-input::placeholder {
@@ -462,6 +700,7 @@ const renderMarkdown = (text) => {
   justify-content: center;
   cursor: pointer;
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s;
+  flex-shrink: 0;
 }
 
 .send-button:disabled {

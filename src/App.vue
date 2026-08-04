@@ -441,18 +441,22 @@ const saveLocalMessages = () => {
   }
 }
 
-const handleSendMessage = async (messageText) => {
-  if (!messageText.trim()) return
+const handleSendMessage = async (payload) => {
+  // payload is { text, image } object
+  const messageText = typeof payload === 'string' ? payload : (payload.text || '')
+  const messageImage = typeof payload === 'string' ? null : (payload.image || null)
+  
+  if (!messageText.trim() && !messageImage) return
   
   // Add user message locally
-  const userMsg = { id: Date.now().toString(), chat_id: currentChatId.value, role: 'user', content: messageText, created_at: new Date().toISOString() }
+  const userMsg = { id: Date.now().toString(), chat_id: currentChatId.value, role: 'user', content: messageText, image: messageImage || undefined, created_at: new Date().toISOString() }
   aiMessages.value.push(userMsg)
   saveLocalMessages()
 
   // Update chat title if first message
   const chat = aiChats.value.find(c => c.id === currentChatId.value)
   if (chat && (chat.title === 'Новый чат' || !chat.title)) {
-    chat.title = messageText.substring(0, 50)
+    chat.title = (messageImage && !messageText.trim()) ? '📷 Фото' : messageText.substring(0, 50)
     if (supabase) {
       supabase.from('ai_chats').update({ title: chat.title }).eq('id', chat.id).then(() => {})
     }
@@ -464,7 +468,10 @@ const handleSendMessage = async (messageText) => {
       const { data } = await supabase.from('ai_messages').insert({ chat_id: currentChatId.value, role: 'user', content: messageText }).select()
       if (data && data[0]) {
         const idx = aiMessages.value.findIndex(m => m.id === userMsg.id)
-        if (idx !== -1) aiMessages.value[idx] = data[0]
+        if (idx !== -1) {
+          data[0].image = messageImage || undefined
+          aiMessages.value[idx] = data[0]
+        }
         saveLocalMessages()
       }
     } catch (err) { console.error('Failed to save message:', err.message) }
@@ -474,10 +481,13 @@ const handleSendMessage = async (messageText) => {
   isAiTyping.value = true
   try {
     const history = aiMessages.value.filter(m => m.id !== userMsg.id).map(m => ({ role: m.role, content: m.content }))
+    const body = { message: messageText || 'Что на этом фото?', history }
+    if (messageImage) body.image = messageImage
+    
     const res = await fetch('/api/ask-ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: messageText, history })
+      body: JSON.stringify(body)
     })
     const data = await res.json()
     

@@ -24,9 +24,9 @@ export default async function handler(req, res) {
   ].filter(Boolean)
 
   try {
-    const { message, history = [] } = req.body || {}
+    const { message, history = [], image } = req.body || {}
 
-    if (!message || typeof message !== 'string') {
+    if ((!message || typeof message !== 'string') && !image) {
       return res.status(400).json({ error: 'Сообщение обязательно.' })
     }
 
@@ -49,13 +49,29 @@ export default async function handler(req, res) {
    - Если запрос нечеткий, сомнительный или тебе не хватает контекста/информации для точного ответа — не додумывай.
    - Вежливо задай уточняющий вопрос и спроси, правильно ли ты понял задачу, прежде чем делать поспешные выводы.`
 
+    // Build user message content (text-only or multimodal with image)
+    let userContent
+    if (image && typeof image === 'string' && image.startsWith('data:image/')) {
+      // Multimodal: image + text
+      userContent = [
+        { type: 'text', text: message || 'Что на этом изображении?' }
+      ]
+      // Extract mime type and base64 data
+      userContent.push({
+        type: 'image_url',
+        image_url: { url: image }
+      })
+    } else {
+      userContent = message
+    }
+
     const messages = [
       { role: 'system', content: systemPrompt },
       ...(Array.isArray(history) ? history.map(item => ({
         role: item.role === 'assistant' ? 'assistant' : 'user',
         content: item.content || ''
       })) : []),
-      { role: 'user', content: message }
+      { role: 'user', content: userContent }
     ]
 
     // Models sequence: Gemini 3.6 Flash primary, Gemini 3.5 Flash backup!
