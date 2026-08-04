@@ -304,8 +304,19 @@ watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) 
 
 const updateMetaThemeColor = (isDark) => {
   const color = isDark ? '#1c211e' : '#2e7d32'
-  const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute('content', color)
+  
+  // Remove old meta tags to force instant real-time browser repaint on Safari iOS / Chrome
+  document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove())
+  const meta = document.createElement('meta')
+  meta.name = 'theme-color'
+  meta.content = color
+  document.head.appendChild(meta)
+
+  document.querySelectorAll('meta[name="background-color"]').forEach(el => el.remove())
+  const bgMeta = document.createElement('meta')
+  bgMeta.name = 'background-color'
+  bgMeta.content = isDark ? '#090b0a' : '#e3e8e5'
+  document.head.appendChild(bgMeta)
 }
 
 watch(isDarkMode, (newVal) => {
