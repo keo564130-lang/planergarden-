@@ -305,21 +305,10 @@ watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) 
 const updateMetaThemeColor = (isDark) => {
   const surfaceColor = isDark ? '#1f2420' : '#ffffff'
   
-  // 1. Force update theme-color meta tag
-  document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove())
-  const meta = document.createElement('meta')
-  meta.name = 'theme-color'
-  meta.content = surfaceColor
-  document.head.appendChild(meta)
+  document.querySelectorAll('meta[name="theme-color"]').forEach(el => {
+    el.setAttribute('content', surfaceColor)
+  })
 
-  // 2. Force update apple status bar style
-  document.querySelectorAll('meta[name="apple-mobile-web-app-status-bar-style"]').forEach(el => el.remove())
-  const appleMeta = document.createElement('meta')
-  appleMeta.name = 'apple-mobile-web-app-status-bar-style'
-  appleMeta.content = isDark ? 'black-translucent' : 'default'
-  document.head.appendChild(appleMeta)
-
-  // 3. Update html & body background-color directly
   document.documentElement.style.backgroundColor = surfaceColor
   document.body.style.backgroundColor = surfaceColor
 }
