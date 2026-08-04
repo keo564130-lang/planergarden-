@@ -281,14 +281,18 @@ onMounted(async () => {
   }
 })
 
-// Keep local storage in sync
-watch(tasks, (v) => { localStorage.setItem('garden_planner_tasks', JSON.stringify(v)) }, { deep: true })
-watch(dayTables, (v) => { localStorage.setItem('garden_planner_day_tables', JSON.stringify(v)) }, { deep: true })
-watch(aiChats, (v) => { localStorage.setItem('garden_planner_ai_chats', JSON.stringify(v)) }, { deep: true })
-watch(allAiMessages, (v) => { localStorage.setItem('garden_planner_all_ai_messages', JSON.stringify(v)) }, { deep: true })
+// Keep local storage in sync (with error protection)
+const safeLocalSet = (key, value) => {
+  try { localStorage.setItem(key, JSON.stringify(value)) }
+  catch (e) { console.warn('localStorage full, clearing old data:', e.message); try { localStorage.removeItem('garden_planner_all_ai_messages'); localStorage.setItem(key, JSON.stringify(value)) } catch(e2) {} }
+}
+watch(tasks, (v) => { safeLocalSet('garden_planner_tasks', v) }, { deep: true })
+watch(dayTables, (v) => { safeLocalSet('garden_planner_day_tables', v) }, { deep: true })
+watch(aiChats, (v) => { safeLocalSet('garden_planner_ai_chats', v) }, { deep: true })
+watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) }, { deep: true })
 
 watch(isDarkMode, (newVal) => {
-  localStorage.setItem('garden_planner_dark_mode', newVal)
+  try { localStorage.setItem('garden_planner_dark_mode', newVal) } catch(e) {}
   if (newVal) { document.documentElement.classList.add('dark-theme') }
   else { document.documentElement.classList.remove('dark-theme') }
 })
@@ -434,9 +438,17 @@ const handleDeleteChat = async (chatId) => {
 
 const saveLocalMessages = () => {
   if (currentChatId.value) {
+    // Strip base64 image data before saving - it's too large for localStorage
+    const cleanMessages = aiMessages.value.map(m => {
+      if (m.image) {
+        const { image, ...rest } = m
+        return { ...rest, hasImage: true }
+      }
+      return m
+    })
     allAiMessages.value = {
       ...allAiMessages.value,
-      [currentChatId.value]: [...aiMessages.value]
+      [currentChatId.value]: cleanMessages
     }
   }
 }
