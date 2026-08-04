@@ -70,23 +70,11 @@ html,
 body {
   overflow: hidden;
   height: 100%;
-}
-
-body {
-  font-family: var(--font-family);
-  background-color: hsl(140, 8%, 90%);
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease;
   margin: 0;
-}
-
-.dark-theme body {
-  background-color: hsl(140, 8%, 4%);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: var(--font-family);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ==========================================

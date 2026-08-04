@@ -303,20 +303,18 @@ watch(aiChats, (v) => { safeLocalSet('garden_planner_ai_chats', v) }, { deep: tr
 watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) }, { deep: true })
 
 const updateMetaThemeColor = (isDark) => {
-  const themeColor = isDark ? '#1a231c' : '#f5f8f6'
+  const themeColor = isDark ? '#141c15' : '#f5f8f6'
   
-  // Update theme-color meta tag
-  let meta = document.querySelector('meta[name="theme-color"]')
-  if (!meta) {
-    meta = document.createElement('meta')
-    meta.name = 'theme-color'
-    document.head.appendChild(meta)
-  }
-  meta.setAttribute('content', themeColor)
+  // Remove and recreate theme-color meta tag for real-time WebKit tint updates
+  document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove())
+  const meta = document.createElement('meta')
+  meta.name = 'theme-color'
+  meta.content = themeColor
+  document.head.appendChild(meta)
 
-  // Update html & body background-color for Safari tinting
-  document.documentElement.style.backgroundColor = isDark ? '#141c15' : '#f5f8f6'
-  document.body.style.backgroundColor = isDark ? '#141c15' : '#f5f8f6'
+  // Update html & body background-color directly
+  document.documentElement.style.backgroundColor = themeColor
+  document.body.style.backgroundColor = themeColor
 }
 
 watch(isDarkMode, (newVal) => {
