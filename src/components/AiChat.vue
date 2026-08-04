@@ -102,7 +102,8 @@
               type="button" 
               class="input-action-btn mic-btn" 
               :class="{ recording: isRecording }"
-              @click="toggleVoice"
+              @click.prevent="toggleVoice"
+              @touchend.prevent="toggleVoice"
               aria-label="Голосовой ввод"
             >
               <svg v-if="!isRecording" viewBox="0 0 24 24" class="action-icon">
@@ -212,8 +213,14 @@ const removeImage = () => {
 // ---- Voice recognition ----
 let wantRecording = false
 let voiceTranscript = ''
+let lastToggleTime = 0
 
 const toggleVoice = () => {
+  // Debounce to prevent double-fire from touchend + click
+  const now = Date.now()
+  if (now - lastToggleTime < 400) return
+  lastToggleTime = now
+  
   if (wantRecording) {
     stopVoice()
   } else {
@@ -241,15 +248,18 @@ const startVoice = () => {
   launchRecognition()
 }
 
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
 const launchRecognition = () => {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!SpeechRecognition || !wantRecording) return
   
   recognition = new SpeechRecognition()
   recognition.lang = 'ru-RU'
-  recognition.interimResults = true
-  recognition.continuous = false  // false for mobile compatibility
+  recognition.continuous = false
   recognition.maxAlternatives = 1
+  // interimResults is buggy on iOS Safari
+  recognition.interimResults = !isIOS
 
   recognition.onresult = (event) => {
     let interim = ''
@@ -266,23 +276,21 @@ const launchRecognition = () => {
 
   recognition.onerror = (event) => {
     console.error('Speech recognition error:', event.error)
-    // Don't restart on fatal errors
     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
       wantRecording = false
       recognition = null
       isRecording.value = false
+      alert('Разрешите доступ к микрофону в настройках браузера.')
       return
     }
-    // For other errors (no-speech, network, etc.), auto-restart
   }
 
   recognition.onend = () => {
     recognition = null
-    // Auto-restart if user hasn't pressed stop
     if (wantRecording) {
       setTimeout(() => {
         if (wantRecording) launchRecognition()
-      }, 100)
+      }, 200)
     } else {
       isRecording.value = false
     }
