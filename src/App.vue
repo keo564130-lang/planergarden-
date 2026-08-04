@@ -201,8 +201,17 @@ onMounted(async () => {
     isDarkMode.value = savedDarkMode === 'true'
   } else {
     isDarkMode.value = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-  }
   updateMetaThemeColor(isDarkMode.value)
+
+  // 1b. MutationObserver: automatically sync theme-color meta whenever dark-theme class changes on <html>
+  const themeObserver = new MutationObserver(() => {
+    const isDark = document.documentElement.classList.contains('dark-theme')
+    updateMetaThemeColor(isDark)
+  })
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
+  })
   
   // 2. Immediate offline cache fallback
   const savedTasks = localStorage.getItem('garden_planner_tasks')
@@ -303,21 +312,21 @@ watch(aiChats, (v) => { safeLocalSet('garden_planner_ai_chats', v) }, { deep: tr
 watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) }, { deep: true })
 
 const updateMetaThemeColor = (isDark) => {
-  const surfaceColor = isDark ? '#1f2420' : '#ffffff'
+  const themeColor = isDark ? '#1f2420' : '#2e7d32'
   
-  document.querySelectorAll('meta[name="theme-color"]').forEach(el => {
-    el.setAttribute('content', surfaceColor)
-  })
+  const meta = document.getElementById('theme-meta') || document.querySelector('meta[name="theme-color"]')
+  if (meta) {
+    meta.setAttribute('content', themeColor)
+  }
 
-  document.documentElement.style.backgroundColor = surfaceColor
-  document.body.style.backgroundColor = surfaceColor
+  document.documentElement.style.backgroundColor = themeColor
+  document.body.style.backgroundColor = themeColor
 }
 
 watch(isDarkMode, (newVal) => {
   try { localStorage.setItem('garden_planner_dark_mode', newVal) } catch(e) {}
   if (newVal) { document.documentElement.classList.add('dark-theme') }
   else { document.documentElement.classList.remove('dark-theme') }
-  updateMetaThemeColor(newVal)
 })
 
 const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value }
