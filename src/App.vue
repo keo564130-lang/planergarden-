@@ -442,21 +442,28 @@ const saveLocalMessages = () => {
 }
 
 const handleSendMessage = async (payload) => {
-  // payload is { text, image } object
+  // payload is { text, image, audio, isVoice } object
   const messageText = typeof payload === 'string' ? payload : (payload.text || '')
   const messageImage = typeof payload === 'string' ? null : (payload.image || null)
+  const messageAudio = typeof payload === 'string' ? null : (payload.audio || null)
+  const isVoice = typeof payload === 'string' ? false : (payload.isVoice || false)
   
-  if (!messageText.trim() && !messageImage) return
+  if (!messageText.trim() && !messageImage && !messageAudio) return
+  
+  // For voice messages, show a placeholder in chat
+  const displayText = isVoice ? '🎤 Голосовое сообщение...' : messageText
   
   // Add user message locally
-  const userMsg = { id: Date.now().toString(), chat_id: currentChatId.value, role: 'user', content: messageText, image: messageImage || undefined, created_at: new Date().toISOString() }
+  const userMsg = { id: Date.now().toString(), chat_id: currentChatId.value, role: 'user', content: displayText, image: messageImage || undefined, created_at: new Date().toISOString() }
   aiMessages.value.push(userMsg)
   saveLocalMessages()
 
   // Update chat title if first message
   const chat = aiChats.value.find(c => c.id === currentChatId.value)
   if (chat && (chat.title === 'Новый чат' || !chat.title)) {
-    chat.title = (messageImage && !messageText.trim()) ? '📷 Фото' : messageText.substring(0, 50)
+    if (isVoice) chat.title = '🎤 Голосовое сообщение'
+    else if (messageImage && !messageText.trim()) chat.title = '📷 Фото'
+    else chat.title = messageText.substring(0, 50)
     if (supabase) {
       supabase.from('ai_chats').update({ title: chat.title }).eq('id', chat.id).then(() => {})
     }
@@ -465,7 +472,7 @@ const handleSendMessage = async (payload) => {
   // Save user message to DB
   if (supabase && currentUser.value) {
     try {
-      const { data } = await supabase.from('ai_messages').insert({ chat_id: currentChatId.value, role: 'user', content: messageText }).select()
+      const { data } = await supabase.from('ai_messages').insert({ chat_id: currentChatId.value, role: 'user', content: displayText }).select()
       if (data && data[0]) {
         const idx = aiMessages.value.findIndex(m => m.id === userMsg.id)
         if (idx !== -1) {
@@ -481,8 +488,9 @@ const handleSendMessage = async (payload) => {
   isAiTyping.value = true
   try {
     const history = aiMessages.value.filter(m => m.id !== userMsg.id).map(m => ({ role: m.role, content: m.content }))
-    const body = { message: messageText || 'Что на этом фото?', history }
+    const body = { message: messageText || (isVoice ? '' : 'Что на этом фото?'), history }
     if (messageImage) body.image = messageImage
+    if (messageAudio) body.audio = messageAudio
     
     const res = await fetch('/api/ask-ai', {
       method: 'POST',
@@ -491,7 +499,16 @@ const handleSendMessage = async (payload) => {
     })
     const data = await res.json()
     
-    const aiReply = data.reply || data.error || 'Не удалось получить ответ.'
+    let aiReply = data.reply || data.error || 'Не удалось получить ответ.'
+    
+    // For voice: update user message with transcribed text if available
+    if (isVoice && data.transcription) {
+      const idx = aiMessages.value.findIndex(m => m.id === userMsg.id || (m.content === displayText && m.role === 'user'))
+      if (idx !== -1) {
+        aiMessages.value[idx] = { ...aiMessages.value[idx], content: '🎤 ' + data.transcription }
+      }
+    }
+    
     const aiMsg = { id: (Date.now() + 1).toString(), chat_id: currentChatId.value, role: 'assistant', content: aiReply, created_at: new Date().toISOString() }
     aiMessages.value.push(aiMsg)
     saveLocalMessages()

@@ -170,7 +170,6 @@ const chatContainer = ref(null)
 const fileInput = ref(null)
 const pendingImage = ref(null)
 const isRecording = ref(false)
-let recognition = null
 
 const currentChatTitle = computed(() => {
   if (!props.currentChatId) return 'Чат'
@@ -210,109 +209,95 @@ const removeImage = () => {
   pendingImage.value = null
 }
 
-// ---- Voice recognition ----
-let wantRecording = false
-let voiceTranscript = ''
+// ---- Voice recording (MediaRecorder) ----
+let mediaRecorder = null
+let audioChunks = []
 let lastToggleTime = 0
+let audioStream = null
 
 const toggleVoice = () => {
-  // Debounce to prevent double-fire from touchend + click
+  // Debounce: prevent double-fire from touch + click
   const now = Date.now()
-  if (now - lastToggleTime < 400) return
+  if (now - lastToggleTime < 500) return
   lastToggleTime = now
   
-  if (wantRecording) {
-    stopVoice()
+  if (isRecording.value) {
+    stopRecording()
   } else {
-    startVoice()
+    startRecording()
   }
 }
 
-const startVoice = () => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (!SpeechRecognition) {
-    alert('Ваш браузер не поддерживает голосовой ввод. Попробуйте Chrome или Safari.')
+const startRecording = async () => {
+  try {
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  } catch (err) {
+    alert('Разрешите доступ к микрофону в настройках браузера.')
     return
   }
   
-  // Clean up any existing instance
-  if (recognition) {
-    try { recognition.abort() } catch(e) {}
-    recognition = null
+  // Pick supported mime type
+  const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/aac', '']
+    .find(t => !t || MediaRecorder.isTypeSupported(t))
+  
+  audioChunks = []
+  try {
+    mediaRecorder = new MediaRecorder(audioStream, mimeType ? { mimeType } : {})
+  } catch (err) {
+    alert('Ваш браузер не поддерживает запись аудио.')
+    audioStream.getTracks().forEach(t => t.stop())
+    audioStream = null
+    return
   }
   
-  wantRecording = true
-  isRecording.value = true
-  voiceTranscript = newMessage.value ? newMessage.value + ' ' : ''
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) audioChunks.push(e.data)
+  }
   
-  launchRecognition()
-}
-
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-
-const launchRecognition = () => {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (!SpeechRecognition || !wantRecording) return
-  
-  recognition = new SpeechRecognition()
-  recognition.lang = 'ru-RU'
-  recognition.continuous = false
-  recognition.maxAlternatives = 1
-  // interimResults is buggy on iOS Safari
-  recognition.interimResults = !isIOS
-
-  recognition.onresult = (event) => {
-    let interim = ''
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcript = event.results[i][0].transcript
-      if (event.results[i].isFinal) {
-        voiceTranscript += transcript + ' '
-      } else {
-        interim = transcript
-      }
+  mediaRecorder.onstop = async () => {
+    // Stop mic
+    if (audioStream) {
+      audioStream.getTracks().forEach(t => t.stop())
+      audioStream = null
     }
-    newMessage.value = (voiceTranscript + interim).trim()
-  }
-
-  recognition.onerror = (event) => {
-    console.error('Speech recognition error:', event.error)
-    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-      wantRecording = false
-      recognition = null
+    
+    if (audioChunks.length === 0) {
       isRecording.value = false
-      alert('Разрешите доступ к микрофону в настройках браузера.')
       return
     }
-  }
-
-  recognition.onend = () => {
-    recognition = null
-    if (wantRecording) {
-      setTimeout(() => {
-        if (wantRecording) launchRecognition()
-      }, 200)
-    } else {
-      isRecording.value = false
+    
+    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' })
+    audioChunks = []
+    
+    // Convert to base64
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64Audio = reader.result // data:audio/...;base64,...
+      // Send as voice message for transcription
+      emit('send-message', { text: '', audio: base64Audio, isVoice: true })
     }
-  }
-
-  try {
-    recognition.start()
-  } catch(e) {
-    console.error('Failed to start recognition:', e)
-    recognition = null
-    wantRecording = false
+    reader.readAsDataURL(blob)
+    
     isRecording.value = false
+    mediaRecorder = null
   }
+  
+  mediaRecorder.start()
+  isRecording.value = true
 }
 
-const stopVoice = () => {
-  wantRecording = false
-  if (recognition) {
-    try { recognition.abort() } catch(e) {}
-    recognition = null
+const stopRecording = () => {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop()
+  } else {
+    // Cleanup if somehow stuck
+    if (audioStream) {
+      audioStream.getTracks().forEach(t => t.stop())
+      audioStream = null
+    }
+    isRecording.value = false
+    mediaRecorder = null
   }
-  isRecording.value = false
 }
 
 // ---- Send message ----
@@ -326,7 +311,7 @@ const sendMessage = () => {
   pendingImage.value = null
   
   // Stop recording if active
-  if (isRecording.value) stopVoice()
+  if (isRecording.value) stopRecording()
 }
 
 const scrollToBottom = async () => {
