@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Text:wght@400;500;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Google+Sans+Text:wght@400;500;700&display=swap");
 
 :root {
   /* M3 Expressive — Green Garden palette */
@@ -21,9 +21,10 @@
   --text-muted: hsl(140, 8%, 46%);
   --text-on-primary: hsl(0, 0%, 100%);
 
-  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
-  --shadow-md: 0 2px 8px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04);
-  --shadow-lg: 0 8px 24px -4px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --shadow-lg:
+    0 8px 24px -4px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
 
   --radius-xs: 8px;
   --radius-sm: 12px;
@@ -35,7 +36,8 @@
   --transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
   --transition-fast: all 0.15s cubic-bezier(0.2, 0, 0, 1);
   --transition-spring: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-  --font-family: 'Google Sans Text', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family:
+    "Google Sans Text", "Outfit", -apple-system, BlinkMacSystemFont, sans-serif;
 
   --bottom-nav-height: 64px;
 }
@@ -52,9 +54,9 @@
   --primary-container: hsl(var(--primary-hue), 30%, 20%);
   --on-primary-container: hsl(var(--primary-hue), 40%, 85%);
   --accent-light: hsl(24, 35%, 16%);
-  --shadow: 0 1px 3px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.15);
-  --shadow-md: 0 2px 8px rgba(0,0,0,0.25), 0 4px 16px rgba(0,0,0,0.15);
-  --shadow-lg: 0 8px 24px -4px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25), 0 4px 16px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px -4px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 * {
@@ -64,7 +66,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html,
+body {
   overflow: hidden;
   height: 100%;
 }
@@ -76,7 +79,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
   margin: 0;
 }
 
@@ -103,7 +108,7 @@ body {
 }
 
 .device-frame::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 30px;
   width: 60px;
@@ -125,7 +130,7 @@ body {
 }
 
 .device-frame::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 20px;
   width: 50px;
@@ -250,8 +255,6 @@ body {
 .bottom-nav-item.active .nav-label {
   font-weight: 700;
 }
-
-
 
 /* ==========================================
    M3 Category Tabs (Segmented Button)
@@ -652,16 +655,24 @@ body {
 }
 
 .embedded-task-table.params th:first-child,
-.embedded-task-table.params td:first-child { width: 40%; }
+.embedded-task-table.params td:first-child {
+  width: 40%;
+}
 .embedded-task-table.params th:last-child,
-.embedded-task-table.params td:last-child { width: 60%; }
+.embedded-task-table.params td:last-child {
+  width: 60%;
+}
 
 .embedded-task-table.watering th:first-child,
-.embedded-task-table.watering td:first-child { width: 50%; }
+.embedded-task-table.watering td:first-child {
+  width: 50%;
+}
 .embedded-task-table.watering th:nth-child(2),
 .embedded-task-table.watering td:nth-child(2),
 .embedded-task-table.watering th:nth-child(3),
-.embedded-task-table.watering td:nth-child(3) { width: 25%; }
+.embedded-task-table.watering td:nth-child(3) {
+  width: 25%;
+}
 
 .cell-input {
   width: 100%;
@@ -687,24 +698,44 @@ body {
    Animations
    ========================================== */
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes zoomIn {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.2s ease;
 }
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 
@@ -734,5 +765,7 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
