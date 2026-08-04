@@ -201,6 +201,7 @@ onMounted(async () => {
     isDarkMode.value = savedDarkMode === 'true'
   } else {
     isDarkMode.value = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  }
   updateMetaThemeColor(isDarkMode.value)
 
   // 1b. MutationObserver: automatically sync theme-color meta whenever dark-theme class changes on <html>
