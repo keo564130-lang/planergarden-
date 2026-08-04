@@ -6,8 +6,17 @@
     },
     "api/transcribe.js": {
       "maxDuration": 30
+    },
+    "api/send-reminders.js": {
+      "maxDuration": 30
     }
   },
+  "crons": [
+    {
+      "path": "/api/send-reminders",
+      "schedule": "* * * * *"
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }

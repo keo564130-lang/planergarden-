@@ -260,14 +260,23 @@ onMounted(async () => {
     setTimeout(() => { window.scrollTo(0, 0) }, 300)
   })
 
-  // 4. Request notification permission
+  // 4. Request notification permission & subscribe to push
   updateNotificationStatus()
-  if ('Notification' in window && Notification.permission === 'default') {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    // Already granted — ensure push subscription is active
+    subscribeUserToPush()
+  } else if ('Notification' in window && Notification.permission === 'default') {
     const triggerPermission = (permission) => {
       updateNotificationStatus()
       if (permission === 'granted') {
         subscribeUserToPush()
-        try { new Notification('Уведомления включены! 🎉', { body: 'Теперь вы будете получать напоминания.', icon: '/favicon.ico' }) } catch (e) {}
+        try {
+          if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => reg.showNotification('Уведомления включены! 🎉', { body: 'Теперь вы будете получать напоминания.', icon: '/icon-192.png' }))
+          } else {
+            new Notification('Уведомления включены! 🎉', { body: 'Теперь вы будете получать напоминания.', icon: '/icon-192.png' })
+          }
+        } catch (e) {}
       }
     }
     const requestSilentPermission = () => {
