@@ -305,7 +305,7 @@ watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) 
 const updateMetaThemeColor = (isDark) => {
   const themeColor = isDark ? '#1a231c' : '#f5f8f6'
   
-  // 1. Update theme-color meta tag
+  // Update theme-color meta tag
   let meta = document.querySelector('meta[name="theme-color"]')
   if (!meta) {
     meta = document.createElement('meta')
@@ -314,18 +314,9 @@ const updateMetaThemeColor = (isDark) => {
   }
   meta.setAttribute('content', themeColor)
 
-  // 2. Update iOS Apple status bar style (black = white text for dark theme, default = dark text for light theme)
-  let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
-  if (!appleMeta) {
-    appleMeta = document.createElement('meta')
-    appleMeta.name = 'apple-mobile-web-app-status-bar-style'
-    document.head.appendChild(appleMeta)
-  }
-  appleMeta.setAttribute('content', isDark ? 'black' : 'default')
-
-  // 3. Update html & body inline background-color for iOS Safari real-time status bar tinting
-  document.documentElement.style.backgroundColor = themeColor
-  document.body.style.backgroundColor = themeColor
+  // Update html & body background-color for Safari tinting
+  document.documentElement.style.backgroundColor = isDark ? '#141c15' : '#f5f8f6'
+  document.body.style.backgroundColor = isDark ? '#141c15' : '#f5f8f6'
 }
 
 watch(isDarkMode, (newVal) => {

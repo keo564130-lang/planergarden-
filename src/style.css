@@ -174,7 +174,10 @@ body {
    App Header (M3 Top App Bar)
    ========================================== */
 .app-header {
-  padding: 14px 20px 10px 20px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  padding-right: calc(20px + env(safe-area-inset-right, 0px));
+  padding-left: calc(20px + env(safe-area-inset-left, 0px));
+  padding-bottom: 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--surface-border);
   display: flex;
@@ -182,6 +185,7 @@ body {
   justify-content: space-between;
   z-index: 10;
   flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .app-title {
