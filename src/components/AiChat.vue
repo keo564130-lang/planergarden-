@@ -210,13 +210,15 @@ const removeImage = () => {
 }
 
 // ---- Voice recognition ----
+let wantRecording = false
+let voiceTranscript = ''
+
 const toggleVoice = () => {
-  // If recognition object exists, always stop it
-  if (recognition) {
+  if (wantRecording) {
     stopVoice()
-    return
+  } else {
+    startVoice()
   }
-  startVoice()
 }
 
 const startVoice = () => {
@@ -232,50 +234,72 @@ const startVoice = () => {
     recognition = null
   }
   
+  wantRecording = true
+  isRecording.value = true
+  voiceTranscript = newMessage.value ? newMessage.value + ' ' : ''
+  
+  launchRecognition()
+}
+
+const launchRecognition = () => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+  if (!SpeechRecognition || !wantRecording) return
+  
   recognition = new SpeechRecognition()
   recognition.lang = 'ru-RU'
   recognition.interimResults = true
-  recognition.continuous = true
+  recognition.continuous = false  // false for mobile compatibility
   recognition.maxAlternatives = 1
-
-  let finalTranscript = newMessage.value ? newMessage.value + ' ' : ''
-  let manualStop = false
 
   recognition.onresult = (event) => {
     let interim = ''
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const transcript = event.results[i][0].transcript
       if (event.results[i].isFinal) {
-        finalTranscript += transcript + ' '
+        voiceTranscript += transcript + ' '
       } else {
         interim = transcript
       }
     }
-    newMessage.value = (finalTranscript + interim).trim()
+    newMessage.value = (voiceTranscript + interim).trim()
   }
 
   recognition.onerror = (event) => {
     console.error('Speech recognition error:', event.error)
-    recognition = null
-    isRecording.value = false
+    // Don't restart on fatal errors
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      wantRecording = false
+      recognition = null
+      isRecording.value = false
+      return
+    }
+    // For other errors (no-speech, network, etc.), auto-restart
   }
 
   recognition.onend = () => {
     recognition = null
-    isRecording.value = false
+    // Auto-restart if user hasn't pressed stop
+    if (wantRecording) {
+      setTimeout(() => {
+        if (wantRecording) launchRecognition()
+      }, 100)
+    } else {
+      isRecording.value = false
+    }
   }
 
   try {
     recognition.start()
-    isRecording.value = true
   } catch(e) {
     console.error('Failed to start recognition:', e)
     recognition = null
+    wantRecording = false
     isRecording.value = false
   }
 }
 
 const stopVoice = () => {
+  wantRecording = false
   if (recognition) {
     try { recognition.abort() } catch(e) {}
     recognition = null
