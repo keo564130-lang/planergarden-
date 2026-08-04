@@ -27,8 +27,7 @@ export default async function handler(req, res) {
 
     const candidateModels = [
       'google/gemini-3.6-flash',
-      'google/gemini-3.5-flash',
-      'google/gemini-2.5-flash'
+      'google/gemini-3.5-flash'
     ]
 
     let lastError = null
