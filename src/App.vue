@@ -313,7 +313,7 @@ watch(aiChats, (v) => { safeLocalSet('garden_planner_ai_chats', v) }, { deep: tr
 watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) }, { deep: true })
 
 const updateMetaThemeColor = (isDark) => {
-  const themeColor = isDark ? '#1f2420' : '#2e7d32'
+  const themeColor = isDark ? '#1c211e' : '#ffffff'
   
   const meta = document.getElementById('theme-meta') || document.querySelector('meta[name="theme-color"]')
   if (meta) {
