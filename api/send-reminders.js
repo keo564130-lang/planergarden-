@@ -87,10 +87,8 @@ export default async function handler(req, res) {
 
           for (const task of userTasks) {
             const [taskHrs, taskMins] = task.time.split(':').map(Number)
-            const taskTotal = taskHrs * 60 + taskMins
-            const nowTotal = localHrs * 60 + localMins
 
-            if (taskTotal >= nowTotal - 4 && taskTotal <= nowTotal) {
+            if (localHrs === taskHrs && localMins === taskMins) {
               const payload = JSON.stringify({
                 title: 'Дачный планер 🌸',
                 options: {
@@ -111,10 +109,8 @@ export default async function handler(req, res) {
 
           for (const table of userTables) {
             const [tableHrs, tableMins] = table.time.split(':').map(Number)
-            const tableTotal = tableHrs * 60 + tableMins
-            const nowTotal = localHrs * 60 + localMins
 
-            if (tableTotal >= nowTotal - 4 && tableTotal <= nowTotal) {
+            if (localHrs === tableHrs && localMins === tableMins) {
               const payload = JSON.stringify({
                 title: 'Дачный планер 🌸',
                 options: {
