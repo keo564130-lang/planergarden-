@@ -91,10 +91,11 @@
             <input 
               v-model="newMessage" 
               type="text" 
-              placeholder="Спросите о растениях..." 
+              :placeholder="isTranscribing ? 'Расшифровка...' : isRecording ? '🔴 Запись...' : 'Спросите о растениях...'" 
               @keyup.enter="sendMessage"
               @focus="handleInputFocus"
               class="message-input"
+              :disabled="isTranscribing"
             />
 
             <!-- Mic button -->
@@ -170,6 +171,7 @@ const chatContainer = ref(null)
 const fileInput = ref(null)
 const pendingImage = ref(null)
 const isRecording = ref(false)
+const isTranscribing = ref(false)
 
 const currentChatTitle = computed(() => {
   if (!props.currentChatId) return 'Чат'
@@ -268,18 +270,31 @@ const startRecording = async () => {
     
     const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' })
     audioChunks = []
-    
-    // Convert to base64
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const base64Audio = reader.result // data:audio/...;base64,...
-      // Send as voice message for transcription
-      emit('send-message', { text: '', audio: base64Audio, isVoice: true })
-    }
-    reader.readAsDataURL(blob)
-    
     isRecording.value = false
     mediaRecorder = null
+    
+    // Convert to base64 and transcribe
+    isTranscribing.value = true
+    const reader = new FileReader()
+    reader.onloadend = async () => {
+      try {
+        const res = await fetch('/api/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: reader.result })
+        })
+        const data = await res.json()
+        if (data.text && data.text.trim()) {
+          // Put transcribed text into the input field
+          newMessage.value = (newMessage.value ? newMessage.value + ' ' : '') + data.text.trim()
+        }
+      } catch (err) {
+        console.error('Transcription error:', err)
+      } finally {
+        isTranscribing.value = false
+      }
+    }
+    reader.readAsDataURL(blob)
   }
   
   mediaRecorder.start()
