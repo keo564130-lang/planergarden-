@@ -1,13 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://jnjojqjfvfrhlqsvgzrf.supabase.co'
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuam9qcWpmdmZyaGxxc3ZnenJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5MTQxOTYsImV4cCI6MjA5ODQ5MDE5Nn0.6Z1RG-z7_L76sAaShzDTOD0po9EoyaAAPbfyfmEX95I'
 
-// Initialize client only if variables are available to prevent crash
-export const supabase = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null
-
-if (!supabase) {
-  console.warn('Supabase client is not initialized. Running in local-only mode. (If you just created the .env file, please RESTART your "npm run dev" command in the terminal to load the variables!)')
-}
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)

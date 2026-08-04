@@ -532,6 +532,7 @@ const handleSendMessage = async (payload) => {
 
 // Auth: login / register / logout
 const handleAuth = async () => {
+  if (!supabase) { authError.value = 'Ошибка: База данных не подключена'; return }
   const username = authUsername.value.trim().toLowerCase()
   const password = authPassword.value
   authError.value = ''
