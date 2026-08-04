@@ -202,6 +202,7 @@ onMounted(async () => {
   } else {
     isDarkMode.value = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
   }
+  updateMetaThemeColor(isDarkMode.value)
   
   // 2. Immediate offline cache fallback
   const savedTasks = localStorage.getItem('garden_planner_tasks')
@@ -301,10 +302,17 @@ watch(dayTables, (v) => { safeLocalSet('garden_planner_day_tables', v) }, { deep
 watch(aiChats, (v) => { safeLocalSet('garden_planner_ai_chats', v) }, { deep: true })
 watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) }, { deep: true })
 
+const updateMetaThemeColor = (isDark) => {
+  const color = isDark ? '#1c211e' : '#2e7d32'
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) meta.setAttribute('content', color)
+}
+
 watch(isDarkMode, (newVal) => {
   try { localStorage.setItem('garden_planner_dark_mode', newVal) } catch(e) {}
   if (newVal) { document.documentElement.classList.add('dark-theme') }
   else { document.documentElement.classList.remove('dark-theme') }
+  updateMetaThemeColor(newVal)
 })
 
 const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value }
