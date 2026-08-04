@@ -208,6 +208,7 @@ onMounted(async () => {
   const themeObserver = new MutationObserver(() => {
     const isDark = document.documentElement.classList.contains('dark-theme')
     updateMetaThemeColor(isDark)
+    updateMetaBackgroundColor(isDark)
   })
   themeObserver.observe(document.documentElement, {
     attributes: true,
@@ -322,6 +323,17 @@ const updateMetaThemeColor = (isDark) => {
 
   document.documentElement.style.backgroundColor = themeColor
   document.body.style.backgroundColor = themeColor
+}
+const updateMetaBackgroundColor = (isDark) => {
+  const backgroundColor = isDark ? '#1c211e' : '#ffffff'
+  
+  const meta = document.getElementById('background-meta') || document.querySelector('meta[name="background-color"]')
+  if (meta) {
+    meta.setAttribute('content', backgroundColor)
+  }
+
+  document.documentElement.style.backgroundColor = backgroundColor
+  document.body.style.backgroundColor = backgroundColor
 }
 
 watch(isDarkMode, (newVal) => {
