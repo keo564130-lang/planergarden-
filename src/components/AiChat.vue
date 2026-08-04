@@ -211,11 +211,12 @@ const removeImage = () => {
 
 // ---- Voice recognition ----
 const toggleVoice = () => {
-  if (isRecording.value) {
+  // If recognition object exists, always stop it
+  if (recognition) {
     stopVoice()
-  } else {
-    startVoice()
+    return
   }
+  startVoice()
 }
 
 const startVoice = () => {
@@ -224,13 +225,21 @@ const startVoice = () => {
     alert('Ваш браузер не поддерживает голосовой ввод. Попробуйте Chrome или Safari.')
     return
   }
+  
+  // Clean up any existing instance
+  if (recognition) {
+    try { recognition.abort() } catch(e) {}
+    recognition = null
+  }
+  
   recognition = new SpeechRecognition()
   recognition.lang = 'ru-RU'
   recognition.interimResults = true
   recognition.continuous = true
   recognition.maxAlternatives = 1
 
-  let finalTranscript = ''
+  let finalTranscript = newMessage.value ? newMessage.value + ' ' : ''
+  let manualStop = false
 
   recognition.onresult = (event) => {
     let interim = ''
@@ -247,20 +256,28 @@ const startVoice = () => {
 
   recognition.onerror = (event) => {
     console.error('Speech recognition error:', event.error)
+    recognition = null
     isRecording.value = false
   }
 
   recognition.onend = () => {
+    recognition = null
     isRecording.value = false
   }
 
-  recognition.start()
-  isRecording.value = true
+  try {
+    recognition.start()
+    isRecording.value = true
+  } catch(e) {
+    console.error('Failed to start recognition:', e)
+    recognition = null
+    isRecording.value = false
+  }
 }
 
 const stopVoice = () => {
   if (recognition) {
-    recognition.stop()
+    try { recognition.abort() } catch(e) {}
     recognition = null
   }
   isRecording.value = false
