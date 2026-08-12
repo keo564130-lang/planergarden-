@@ -563,14 +563,21 @@ const handleSendMessage = async (payload) => {
     })
     const data = await res.json()
     
-    const aiReply = data.reply || data.error || 'Не удалось получить ответ.'
-    const aiMsg = { id: (Date.now() + 1).toString(), chat_id: currentChatId.value, role: 'assistant', content: aiReply, created_at: new Date().toISOString() }
-    aiMessages.value.push(aiMsg)
-    saveLocalMessages()
+    if (data.error || !data.reply) {
+      // Show error as a system message, not as AI reply
+      const errorMsg = data.error || 'Не удалось получить ответ.'
+      const errSystemMsg = { id: (Date.now() + 1).toString(), chat_id: currentChatId.value, role: 'assistant', content: `❌ **Ошибка:** ${errorMsg}`, created_at: new Date().toISOString() }
+      aiMessages.value.push(errSystemMsg)
+      saveLocalMessages()
+    } else {
+      const aiMsg = { id: (Date.now() + 1).toString(), chat_id: currentChatId.value, role: 'assistant', content: data.reply, created_at: new Date().toISOString() }
+      aiMessages.value.push(aiMsg)
+      saveLocalMessages()
 
-    // Save AI response to DB
-    if (supabase && currentUser.value) {
-      try { await supabase.from('ai_messages').insert({ chat_id: currentChatId.value, role: 'assistant', content: aiReply }) } catch (err) {}
+      // Save AI response to DB
+      if (supabase && currentUser.value) {
+        try { await supabase.from('ai_messages').insert({ chat_id: currentChatId.value, role: 'assistant', content: data.reply }) } catch (err) {}
+      }
     }
   } catch (err) {
     const errorMsg = { id: (Date.now() + 1).toString(), chat_id: currentChatId.value, role: 'assistant', content: 'Ошибка подключения к ИИ. Проверьте интернет.', created_at: new Date().toISOString() }

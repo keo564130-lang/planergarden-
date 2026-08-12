@@ -62,50 +62,69 @@ export default async function handler(req, res) {
     ]
 
     let lastError = null
+    let lastErrorCode = null
+
+    const tokenOptions = [1500, 500]
 
     for (const apiKey of apiKeys) {
       for (const model of candidateModels) {
-        try {
-          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-              'HTTP-Referer': 'https://planer-garden.vercel.app',
-              'X-Title': 'Garden Planner'
-            },
-            body: JSON.stringify({
-              model,
-              messages,
-              temperature: 0.7,
-              max_tokens: 1500
+        for (const maxTokens of tokenOptions) {
+          try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://planer-garden.vercel.app',
+                'X-Title': 'Garden Planner'
+              },
+              body: JSON.stringify({
+                model,
+                messages,
+                temperature: 0.7,
+                max_tokens: maxTokens
+              })
             })
-          })
 
-          if (response.ok) {
-            const data = await response.json()
-            const msgObj = data.choices?.[0]?.message
-            const reply = msgObj?.content || msgObj?.reasoning
-            if (reply && typeof reply === 'string') {
-              const result = { reply: reply.trim() }
-              // Extract transcription for voice messages
-              if (audio) {
-                const match = reply.match(/\*\*Вы сказали:\*\*\s*[«""]?(.+?)[»""]?\n/i)
-                if (match) result.transcription = match[1].trim()
+            if (response.ok) {
+              const data = await response.json()
+              const msgObj = data.choices?.[0]?.message
+              const reply = msgObj?.content || msgObj?.reasoning
+              if (reply && typeof reply === 'string') {
+                const result = { reply: reply.trim() }
+                // Extract transcription for voice messages
+                if (audio) {
+                  const match = reply.match(/\*\*Вы сказали:\*\*\s*[«""]?(.+?)[»""]?\n/i)
+                  if (match) result.transcription = match[1].trim()
+                }
+                return res.status(200).json(result)
               }
-              return res.status(200).json(result)
+            } else {
+              const errData = await response.json().catch(() => ({}))
+              const errMsg = errData?.error?.message || `Status ${response.status}`
+              lastError = errMsg
+              
+              // Detect credit/billing errors
+              if (errMsg.includes('credits') || errMsg.includes('afford') || response.status === 402) {
+                lastErrorCode = 'NO_CREDITS'
+                continue // try with fewer tokens or next key
+              }
+              lastErrorCode = 'API_ERROR'
             }
-          } else {
-            const errData = await response.json().catch(() => ({}))
-            lastError = errData?.error?.message || `Status ${response.status}`
+          } catch (err) {
+            lastError = err.message
+            lastErrorCode = 'NETWORK_ERROR'
           }
-        } catch (err) {
-          lastError = err.message
         }
       }
     }
 
-    return res.status(500).json({ error: `Ошибка API: ${lastError}` })
+    return res.status(500).json({ 
+      error: lastErrorCode === 'NO_CREDITS' 
+        ? '⚠️ Закончились кредиты OpenRouter API. Пополните баланс на openrouter.ai/settings/credits'
+        : `Ошибка API: ${lastError}`,
+      code: lastErrorCode 
+    })
   } catch (error) {
     console.error('Ask AI Error:', error)
     return res.status(500).json({ error: error.message || 'Ошибка сервера.' })
