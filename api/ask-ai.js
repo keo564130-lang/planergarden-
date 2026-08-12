@@ -79,41 +79,49 @@ export default async function handler(req, res) {
 
         contents.push({ role: 'user', parts: userParts })
 
-        const response = await fetch(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent', {
-            method: 'POST',
-            headers: {
-              'x-goog-api-key': geminiKey,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              contents,
-              systemInstruction: { parts: [{ text: systemPrompt }] },
-              generationConfig: { maxOutputTokens: 2000, temperature: 0.7 }
-            })
-          }
-        )
+        const geminiModels = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.5-flash']
+        let geminiError = null
 
-        if (response.ok) {
-          const data = await response.json()
-          const reply = data.candidates?.[0]?.content?.parts?.[0]?.text
-          if (reply && typeof reply === 'string') {
-            const result = { reply: reply.trim() }
-            if (audio) {
-              const match = reply.match(/\*\*Вы сказали:\*\*\s*[«""]?(.+?)[»""]?\n/i)
-              if (match) result.transcription = match[1].trim()
+        for (const model of geminiModels) {
+          try {
+            const response = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+                method: 'POST',
+                headers: {
+                  'x-goog-api-key': geminiKey,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  contents,
+                  systemInstruction: { parts: [{ text: systemPrompt }] },
+                  generationConfig: { maxOutputTokens: 2000, temperature: 0.7 }
+                })
+              }
+            )
+
+            if (response.ok) {
+              const data = await response.json()
+              const reply = data.candidates?.[0]?.content?.parts?.[0]?.text
+              if (reply && typeof reply === 'string') {
+                const result = { reply: reply.trim() }
+                if (audio) {
+                  const match = reply.match(/\*\*Вы сказали:\*\*\s*[«""]?(.+?)[»""]?\n/i)
+                  if (match) result.transcription = match[1].trim()
+                }
+                return res.status(200).json(result)
+              }
+            } else if (response.status === 429) {
+              // Quota exceeded for this model, try next
+              geminiError = `${model}: квота исчерпана`
+              continue
+            } else {
+              const errBody = await response.text().catch(() => '')
+              geminiError = `${model} (${response.status}): ${errBody.substring(0, 150)}`
             }
-            return res.status(200).json(result)
+          } catch (err) {
+            geminiError = err.message
           }
-        } else {
-          const errBody = await response.text().catch(() => '')
-          console.error('Gemini API error:', response.status, errBody)
-          // If Gemini fails, return the error directly instead of falling to OpenRouter
-          return res.status(500).json({ error: `Gemini API (${response.status}): ${errBody.substring(0, 200)}` })
         }
-      } catch (err) {
-        console.error('Gemini direct error:', err.message)
-        return res.status(500).json({ error: `Gemini ошибка: ${err.message}` })
       }
     }
 

@@ -19,28 +19,33 @@ export default async function handler(req, res) {
         const [meta, data] = audio.split(',')
         const mimeType = meta.match(/data:(.*?);/)?.[1] || 'audio/webm'
 
-        const response = await fetch(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent', {
-            method: 'POST',
-            headers: {
-              'x-goog-api-key': geminiKey,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [
-                { text: 'Расшифруй это аудио в текст. Верни ТОЛЬКО произнесённый текст, ничего больше.' },
-                { inlineData: { mimeType, data } }
-              ]}],
-              systemInstruction: { parts: [{ text: 'Ты — транскрибатор. Твоя единственная задача — расшифровать аудио в текст. Верни ТОЛЬКО текст который произнёс человек, без кавычек, без пояснений, без ничего лишнего. Если ничего не слышно — верни пустую строку.' }] },
-              generationConfig: { maxOutputTokens: 500, temperature: 0.1 }
-            })
-          }
-        )
+        const geminiModels = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.5-flash']
+        for (const model of geminiModels) {
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+              method: 'POST',
+              headers: {
+                'x-goog-api-key': geminiKey,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                contents: [{ role: 'user', parts: [
+                  { text: 'Расшифруй это аудио в текст. Верни ТОЛЬКО произнесённый текст, ничего больше.' },
+                  { inlineData: { mimeType, data } }
+                ]}],
+                systemInstruction: { parts: [{ text: 'Ты — транскрибатор. Твоя единственная задача — расшифровать аудио в текст. Верни ТОЛЬКО текст который произнёс человек, без кавычек, без пояснений, без ничего лишнего. Если ничего не слышно — верни пустую строку.' }] },
+                generationConfig: { maxOutputTokens: 500, temperature: 0.1 }
+              })
+            }
+          )
 
-        if (response.ok) {
-          const result = await response.json()
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text || ''
-          return res.status(200).json({ text: text.trim() })
+          if (response.ok) {
+            const result = await response.json()
+            const text = result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+            return res.status(200).json({ text: text.trim() })
+          } else if (response.status === 429) {
+            continue // try next model
+          }
         }
       } catch (err) {
         console.error('Gemini transcribe error:', err.message)
