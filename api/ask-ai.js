@@ -122,6 +122,8 @@ export default async function handler(req, res) {
             geminiError = err.message
           }
         }
+      } catch (err) {
+        console.error('Gemini error:', err.message)
       }
     }
 
