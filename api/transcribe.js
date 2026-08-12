@@ -19,7 +19,7 @@ export default async function handler(req, res) {
         const [meta, data] = audio.split(',')
         const mimeType = meta.match(/data:(.*?);/)?.[1] || 'audio/webm'
 
-        const geminiModels = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.5-flash']
+        const geminiModels = ['gemini-3.5-flash', 'gemini-3.6-flash']
         for (const model of geminiModels) {
           const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {

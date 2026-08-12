@@ -79,7 +79,7 @@ export default async function handler(req, res) {
 
         contents.push({ role: 'user', parts: userParts })
 
-        const geminiModels = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-2.5-flash']
+        const geminiModels = ['gemini-3.5-flash', 'gemini-3.6-flash']
         let geminiError = null
 
         for (const model of geminiModels) {
