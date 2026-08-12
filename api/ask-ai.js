@@ -57,14 +57,14 @@ export default async function handler(req, res) {
     ]
 
     const candidateModels = [
-      'google/gemini-3.6-flash:free',
-      'google/gemini-3.5-flash:free'
+      'google/gemini-3.6-flash',
+      'google/gemini-3.5-flash'
     ]
 
     let lastError = null
     let lastErrorCode = null
 
-    const tokenOptions = [1500, 500]
+    const tokenOptions = [800, 400]
 
     for (const apiKey of apiKeys) {
       for (const model of candidateModels) {
