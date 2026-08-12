@@ -6,11 +6,6 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
-  const key1 = Buffer.from('c2stb3ItdjEtZTY3NDc1ODk1ZDkzODJlMDM1YzY1MTExMzI5OTg3MGM2NjQxNzc4ZTY4YzA5MTIyNjY3ZDZiZTBhM2RiOGQ0Yg==', 'base64').toString('utf-8')
-  const key2 = Buffer.from('c2stb3ItdjEtYWNkZjAyZmViYWRhOWQyNDUxYjI2ODY0YWVjNzRiMzkwYzA4YjMzNDUwNjBlYTc2NzZkNGI1YjlhYWY3MDlhOA==', 'base64').toString('utf-8')
-
-  const apiKeys = [process.env.OPENROUTER_API_KEY, key1, key2].filter(Boolean)
-
   try {
     const { audio } = req.body || {}
     if (!audio || typeof audio !== 'string' || !audio.startsWith('data:audio/')) {
@@ -25,11 +20,36 @@ export default async function handler(req, res) {
       ]}
     ]
 
-    const candidateModels = [
-      'google/gemini-3.6-flash',
-      'google/gemini-3.5-flash'
-    ]
+    // Strategy 1: Direct Google Gemini API (FREE!)
+    const geminiKey = process.env.GEMINI_API_KEY
+    if (geminiKey) {
+      const geminiModels = ['gemini-2.5-flash', 'gemini-2.0-flash']
+      for (const model of geminiModels) {
+        try {
+          const response = await fetch(
+            'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${geminiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ model, messages, temperature: 0.1, max_tokens: 500 })
+            }
+          )
+          if (response.ok) {
+            const data = await response.json()
+            const text = data.choices?.[0]?.message?.content || ''
+            return res.status(200).json({ text: text.trim() })
+          }
+        } catch (err) { /* try next */ }
+      }
+    }
 
+    // Strategy 2: OpenRouter fallback
+    const key1 = Buffer.from('c2stb3ItdjEtZTY3NDc1ODk1ZDkzODJlMDM1YzY1MTExMzI5OTg3MGM2NjQxNzc4ZTY4YzA5MTIyNjY3ZDZiZTBhM2RiOGQ0Yg==', 'base64').toString('utf-8')
+    const key2 = Buffer.from('c2stb3ItdjEtYWNkZjAyZmViYWRhOWQyNDUxYjI2ODY0YWVjNzRiMzkwYzA4YjMzNDUwNjBlYTc2NzZkNGI1YjlhYWY3MDlhOA==', 'base64').toString('utf-8')
+    const apiKeys = [process.env.OPENROUTER_API_KEY, key1, key2].filter(Boolean)
+    const candidateModels = ['google/gemini-3.6-flash', 'google/gemini-3.5-flash']
     let lastError = null
 
     for (const apiKey of apiKeys) {
@@ -48,8 +68,7 @@ export default async function handler(req, res) {
 
           if (response.ok) {
             const data = await response.json()
-            const msgObj = data.choices?.[0]?.message
-            const text = msgObj?.content || msgObj?.reasoning || ''
+            const text = data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning || ''
             return res.status(200).json({ text: text.trim() })
           } else {
             const errData = await response.json().catch(() => ({}))
