@@ -49,9 +49,9 @@ export default async function handler(req, res) {
 
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...(Array.isArray(history) ? history.map(item => ({
+      ...(Array.isArray(history) ? history.slice(-4).map(item => ({
         role: item.role === 'assistant' ? 'assistant' : 'user',
-        content: item.content || ''
+        content: (item.content || '').substring(0, 500)
       })) : []),
       { role: 'user', content: userContent }
     ]
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
     let lastError = null
     let lastErrorCode = null
 
-    const tokenOptions = [800, 400]
+    const tokenOptions = [700]
 
     for (const apiKey of apiKeys) {
       for (const model of candidateModels) {
