@@ -35,14 +35,19 @@ export default async function handler(req, res) {
   if (!url) return res.status(400).json({ error: 'URL required' })
 
   try {
-    const response = await fetch(url, {
+    // Modify URL for VK to bypass anti-bot tarpit
+    let fetchUrl = url
+    if (url.includes('vk.com') && !url.includes('m.vk.com')) {
+      fetchUrl = url.replace('vk.com', 'm.vk.com')
+    }
+
+    const response = await fetch(fetchUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'ru-RU,ru;q=0.9'
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
       },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(8000)
     })
 
     if (!response.ok) {

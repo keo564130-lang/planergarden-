@@ -296,18 +296,36 @@ const parseLink = async () => {
   linkError.value = ''
   
   try {
-    const res = await fetch('/api/parse-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    })
-    
-    const data = await res.json()
-    
-    if (!res.ok) {
-      linkError.value = data.error || 'Не удалось загрузить'
-      linkLoading.value = false
-      return
+    let data;
+    try {
+      const res = await fetch('/api/parse-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      })
+      
+      const jsonData = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(jsonData.error || 'Backend parser failed')
+      }
+      data = jsonData
+    } catch (e) {
+      console.log('Primary parsing failed, trying fallback...', e)
+      // Fallback to microlink if our backend is blocked/timed out
+      const resFallback = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`)
+      const mData = await resFallback.json()
+      
+      if (mData.status !== 'success') {
+        throw new Error('Не удалось проанализировать ссылку. Возможно она закрыта настройками приватности.')
+      }
+      
+      data = {
+        title: mData.data.title || '',
+        description: mData.data.description || '',
+        originalImage: mData.data.image?.url || '',
+        image: mData.data.image?.url ? `/api/parse-url?image=${encodeURIComponent(mData.data.image.url)}` : ''
+      }
     }
     
     // Fill recipe form
@@ -357,11 +375,10 @@ const parseLink = async () => {
         // Image failed entirely, continue without it
       }
     }
-    
     showLinkModal.value = false
     showRecipeModal.value = true
   } catch (e) {
-    linkError.value = 'Ошибка сети'
+    linkError.value = e.message || 'Ошибка сети'
   }
   
   linkLoading.value = false
