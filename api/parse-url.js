@@ -128,8 +128,10 @@ export default async function handler(req, res) {
       description = decodeEntities(vkTextMatch[1])
     }
     
-    // Clean HTML from description
+    // Clean HTML from description and preserve emojis
     description = description
+      .replace(/<img[^>]*class=["'][^"']*emoji[^"']*["'][^>]*alt=["']([^"']+)["'][^>]*>/gi, '$1')
+      .replace(/<img[^>]*alt=["']([^"']+)["'][^>]*class=["'][^"']*emoji[^"']*["'][^>]*>/gi, '$1')
       .split('Последние записи:')[0] // Remove VK's recent posts block
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>/gi, '\n')
