@@ -251,10 +251,24 @@ const adjustTextareaHeight = (e) => {
   e.target.style.height = e.target.scrollHeight + 'px'
 }
 
+// iOS keyboard: keep focused field visible
 const scrollToField = (e) => {
+  const el = e.target
+  // Wait for iOS keyboard to animate open
   setTimeout(() => {
-    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, 300)
+    if (window.visualViewport) {
+      const vvHeight = window.visualViewport.height
+      const rect = el.getBoundingClientRect()
+      const elBottom = rect.bottom
+      // If element is below visible area, scroll it up
+      if (elBottom > vvHeight - 20) {
+        const scrollParent = el.closest('.modal-body')
+        if (scrollParent) {
+          scrollParent.scrollTop += (elBottom - vvHeight + 80)
+        }
+      }
+    }
+  }, 400)
 }
 </script>
 <template>
@@ -988,6 +1002,10 @@ button {
   padding: 0;
   padding-top: env(safe-area-inset-top);
   background: var(--bg-app);
+  height: var(--app-height, 100vh);
+  height: var(--app-height, 100dvh);
+  max-height: var(--app-height, 100vh);
+  overflow: hidden;
 }
 .modal-header {
   display: flex;
@@ -1021,11 +1039,12 @@ button {
 .modal-body {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  gap: 16px;
+  padding-bottom: calc(60px + env(safe-area-inset-bottom));
 }
 .photo-editor .photo-thumbs {
   display: flex;
