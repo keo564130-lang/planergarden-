@@ -208,6 +208,7 @@ const openAddRecipe = (categoryId = null) => {
     name: '',
     content: '',
     photos: [],
+    video_url: null,
     note: '',
     tags: [],
     color: 'default'
@@ -225,6 +226,7 @@ const openEditRecipe = () => {
     name: selectedRecipe.value.name,
     content: selectedRecipe.value.content,
     photos: [...(selectedRecipe.value.photos || [])],
+    video_url: selectedRecipe.value.video_url || null,
     note: '',
     tags: [...(selectedRecipe.value.tags || [])],
     color: selectedRecipe.value.color || 'default'
@@ -243,6 +245,7 @@ const saveRecipe = () => {
       name: editingRecipe.value.name.trim(),
       content: editingRecipe.value.content.trim(),
       photos: editingRecipe.value.photos,
+      video_url: editingRecipe.value.video_url || null,
       tags: editingRecipe.value.tags,
       color: editingRecipe.value.color
     })
@@ -253,6 +256,7 @@ const saveRecipe = () => {
       name: editingRecipe.value.name.trim(),
       content: editingRecipe.value.content.trim(),
       photos: editingRecipe.value.photos,
+      video_url: editingRecipe.value.video_url || null,
       note: editingRecipe.value.note.trim(),
       tags: editingRecipe.value.tags,
       color: editingRecipe.value.color
@@ -312,6 +316,7 @@ watch(() => props.shareData, (newVal) => {
       name: newVal.title || '',
       content: newVal.text || '',
       photos: newVal.photos ? [...newVal.photos] : [],
+      video_url: newVal.video_url || null,
       note: '',
       tags: [],
       color: 'default'
@@ -480,6 +485,7 @@ const parseLink = async () => {
       name: finalTitle,
       content: data.description || '',
       photos: [],
+      video_url: data.video || null,
       note: '',
       tags: [],
       color: 'default'
@@ -612,6 +618,17 @@ const parseLink = async () => {
         </div>
 
         <div class="detail-body">
+          <!-- Video player card -->
+          <div class="detail-video-card" v-if="selectedRecipe.video_url">
+            <video 
+              :src="selectedRecipe.video_url" 
+              controls 
+              playsinline 
+              preload="metadata"
+              class="recipe-video-player"
+            ></video>
+          </div>
+
           <div class="detail-photo-card" v-if="selectedRecipe.photos && selectedRecipe.photos.length > 0"
                @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
             <div class="detail-carousel" :style="{ transform: `translateX(-${currentCarouselIndex * 100}%)` }">
@@ -752,6 +769,19 @@ const parseLink = async () => {
                 <span>+</span>
                 <input type="file" accept="image/*" multiple @change="handlePhotoUpload" hidden>
               </label>
+            </div>
+          </div>
+          
+          <!-- Video preview in edit modal -->
+          <div class="form-island" v-if="editingRecipe.video_url">
+            <div class="form-group">
+              <div class="video-field-header">
+                <label>🎬 Видео рецепта</label>
+                <button type="button" class="btn-delete-video" @click="editingRecipe.video_url = null">✕ Удалить видео</button>
+              </div>
+              <div class="edit-video-box">
+                <video :src="editingRecipe.video_url" controls playsinline preload="metadata"></video>
+              </div>
             </div>
           </div>
           
@@ -1672,5 +1702,61 @@ button {
   color: #fff;
   border-radius: 50%;
   font-size: 20px;
+}
+
+/* Video player in Detail */
+.detail-video-card {
+  width: 100%;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--surface-border);
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-height: 520px;
+}
+.recipe-video-player {
+  width: 100%;
+  max-height: 520px;
+  display: block;
+  object-fit: contain;
+  border-radius: var(--radius-xl);
+}
+
+/* Edit Modal Video styles */
+.video-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.btn-delete-video {
+  background: none;
+  border: none;
+  color: #d32f2f;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+.btn-delete-video:active {
+  background: rgba(211, 47, 47, 0.1);
+}
+.edit-video-box {
+  width: 100%;
+  max-height: 240px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  justify-content: center;
+}
+.edit-video-box video {
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
 }
 </style>

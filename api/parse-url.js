@@ -69,14 +69,19 @@ export default async function handler(req, res) {
                   rapidData?.data?.image_versions?.items?.[0]?.url || 
                   rapidData?.data?.image_versions?.additional_items?.first_frame?.url || 
                   rapidData?.data?.display_url || '';
+      let video = rapidData?.data?.video_url || 
+                  rapidData?.data?.video_versions?.[0]?.url || '';
 
       // Fallback recursive search if direct paths missed
-      if (!description || !image) {
+      if (!description || !image || !video) {
         function findData(obj) {
           if (!obj || typeof obj !== 'object') return;
           for (const key in obj) {
             const val = obj[key];
             if (typeof val === 'string') {
+              if (!video && val.startsWith('http') && (val.includes('.mp4') || key.includes('video_url') || key.includes('videoUrl'))) {
+                video = val;
+              }
               if (!image && val.startsWith('http') && (val.includes('.jpg') || val.includes('.webp') || val.includes('cdninstagram'))) {
                 if (key.toLowerCase().includes('thumb') || key.toLowerCase().includes('cover') || key.toLowerCase().includes('frame') || key.toLowerCase().includes('display')) {
                   image = val;
@@ -100,6 +105,7 @@ export default async function handler(req, res) {
         description,
         image: proxyImage,
         originalImage: image,
+        video: video || '',
         source: url
       });
     } catch (err) {

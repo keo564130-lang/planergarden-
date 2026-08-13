@@ -747,6 +747,7 @@ const handleAddRecipe = async (recipe) => {
     name: recipe.name, 
     content: recipe.content, 
     photos: recipe.photos || [], 
+    video_url: recipe.video_url || null,
     color: recipe.color || 'default',
     tags: recipe.tags || [],
     position: recipes.value.length, 
@@ -762,6 +763,7 @@ const handleAddRecipe = async (recipe) => {
         name: recipe.name, 
         content: recipe.content, 
         photos: recipe.photos || [], 
+        video_url: recipe.video_url || null,
         color: recipe.color || 'default',
         tags: recipe.tags || [],
         position: recipes.value.length - 1, 
@@ -786,6 +788,7 @@ const handleUpdateRecipe = async (recipe) => {
       name: recipe.name, 
       content: recipe.content, 
       photos: recipe.photos, 
+      video_url: recipe.video_url !== undefined ? recipe.video_url : recipes.value[idx].video_url,
       color: recipe.color || recipes.value[idx].color,
       tags: recipe.tags || recipes.value[idx].tags,
       updated_at: new Date().toISOString() 
@@ -797,6 +800,7 @@ const handleUpdateRecipe = async (recipe) => {
         name: recipe.name, 
         content: recipe.content, 
         photos: recipe.photos, 
+        video_url: recipe.video_url !== undefined ? recipe.video_url : recipes.value[idx]?.video_url || null,
         color: recipe.color,
         tags: recipe.tags,
         updated_at: new Date().toISOString() 
