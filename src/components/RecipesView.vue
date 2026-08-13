@@ -74,11 +74,17 @@ const selectedRecipeNotes = computed(() => {
   return props.recipeNotes.filter(n => n.recipe_id === selectedRecipe.value.id).sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
 })
 const newNoteText = ref('')
+const showNoteInput = ref(false)
+const noteInputRef = ref(null)
 const addNote = () => {
   if (newNoteText.value.trim() && selectedRecipe.value) {
     emit('add-note', selectedRecipe.value.id, newNoteText.value.trim())
     newNoteText.value = ''
   }
+}
+const addNoteAndClose = () => {
+  addNote()
+  showNoteInput.value = false
 }
 const deleteNote = (noteId) => {
   if (confirm('Удалить заметку?')) {
@@ -293,7 +299,35 @@ const adjustTextareaHeight = (e) => {
 
       <!-- VIEW 2: RECIPE DETAIL -->
       <div v-else-if="currentView === 'detail' && selectedRecipe" class="view detail-view" key="detail">
-        <div class="detail-header">
+        
+        <!-- Photo area -->
+        <div class="detail-photo-area" v-if="selectedRecipe.photos && selectedRecipe.photos.length > 0"
+             @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
+          <div class="detail-carousel" :style="{ transform: `translateX(-${currentCarouselIndex * 100}%)` }">
+            <div class="detail-carousel-slide" v-for="(photo, i) in selectedRecipe.photos" :key="i" @click="openFullscreen(photo)">
+              <img :src="photo" />
+            </div>
+          </div>
+          <div class="detail-photo-dots" v-if="selectedRecipe.photos.length > 1">
+            <span v-for="(_, i) in selectedRecipe.photos" :key="i" class="photo-dot" :class="{ active: i === currentCarouselIndex }"></span>
+          </div>
+          <!-- Back & actions overlay on photo -->
+          <div class="detail-photo-actions">
+            <button class="detail-action-btn" @click="backToList">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div class="spacer"></div>
+            <button class="detail-action-btn" @click="openEditRecipe">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            <button class="detail-action-btn danger" @click="deleteCurrentRecipe">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- No photo: show header bar instead -->
+        <div v-else class="detail-header-bar">
           <button class="btn-icon" @click="backToList">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           </button>
@@ -306,48 +340,48 @@ const adjustTextareaHeight = (e) => {
           </button>
         </div>
         
-        <div class="detail-scroll">
-          <div class="photo-carousel" v-if="selectedRecipe.photos && selectedRecipe.photos.length > 0"
-               @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
-            <div class="carousel-inner" :style="{ transform: `translateX(-${currentCarouselIndex * 100}%)` }">
-              <div class="carousel-item" v-for="(photo, i) in selectedRecipe.photos" :key="i" @click="openFullscreen(photo)">
-                <img :src="photo" />
+        <!-- Scrollable content -->
+        <div class="detail-body">
+          <!-- Recipe card -->
+          <div class="detail-recipe-card">
+            <h1 class="detail-title">{{ selectedRecipe.name }}</h1>
+            <div class="detail-text">{{ selectedRecipe.content }}</div>
+          </div>
+
+          <!-- Notes section -->
+          <div class="detail-notes-section">
+            <div class="notes-header">
+              <span class="notes-label">📝 Заметки</span>
+              <button class="notes-add-btn" @click="showNoteInput = !showNoteInput">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
+            </div>
+
+            <!-- Inline note input -->
+            <div v-if="showNoteInput" class="note-add-card">
+              <input type="text" v-model="newNoteText" placeholder="Написать заметку..." @keyup.enter="addNoteAndClose" ref="noteInputRef" />
+              <div class="note-add-actions">
+                <button class="btn-text-sm" @click="showNoteInput = false">Отмена</button>
+                <button class="btn-primary-sm" @click="addNoteAndClose">Добавить</button>
               </div>
             </div>
-            <div class="carousel-dots" v-if="selectedRecipe.photos.length > 1">
-              <span v-for="(_, i) in selectedRecipe.photos" :key="i" class="dot" :class="{ active: i === currentCarouselIndex }"></span>
+
+            <div v-if="selectedRecipeNotes.length === 0 && !showNoteInput" class="notes-empty">
+              Пока нет заметок
             </div>
-          </div>
-          <div class="no-photo" v-else>📷 Нет фото</div>
-          
-          <div class="recipe-info">
-            <h1 class="recipe-name">{{ selectedRecipe.name }}</h1>
-            <div class="recipe-content">{{ selectedRecipe.content }}</div>
-          </div>
-          
-          <div class="divider"></div>
-          
-          <div class="notes-section">
-            <h3>📝 Заметки</h3>
-            <div class="notes-list">
-              <div v-for="note in selectedRecipeNotes" :key="note.id" class="note-item">
-                <div class="note-content">
-                  <div class="note-text">{{ note.text }}</div>
-                  <div class="note-date">{{ new Date(note.created_at).toLocaleDateString('ru-RU') }}</div>
+
+            <div class="notes-cards">
+              <div v-for="note in selectedRecipeNotes" :key="note.id" class="note-card">
+                <div class="note-card-body">
+                  <div class="note-card-text">{{ note.text }}</div>
+                  <div class="note-card-date">{{ new Date(note.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) }}</div>
                 </div>
-                <button class="btn-icon muted small" @click="deleteNote(note.id)">
+                <button class="note-delete-btn" @click="deleteNote(note.id)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
               </div>
             </div>
           </div>
-        </div>
-        
-        <div class="note-input-area">
-          <input type="text" v-model="newNoteText" placeholder="Новая заметка..." @keyup.enter="addNote">
-          <button class="btn-send" @click="addNote">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-          </button>
         </div>
       </div>
     </transition>
@@ -648,170 +682,237 @@ button {
 
 /* Detail View */
 .detail-view { background: var(--bg-app); display: flex; flex-direction: column; }
-.detail-header {
-  display: flex;
-  align-items: center;
-  padding: 12px 8px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--surface-border);
-  z-index: 2;
-  gap: 4px;
-}
-.detail-header .spacer { flex: 1; }
-.detail-header .btn-icon {
-  width: 40px; height: 40px;
-  border-radius: var(--radius-full);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px; color: var(--text-main);
-  transition: background var(--transition-fast);
-}
-.detail-header .btn-icon:active { background: var(--surface-secondary); }
-.detail-header .btn-icon.delete-btn { color: #d32f2f; }
-.detail-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 80px;
-}
-.photo-carousel {
+
+/* Photo area with overlay actions */
+.detail-photo-area {
   position: relative;
   width: 100%;
   aspect-ratio: 4/3;
-  max-height: 320px;
+  max-height: 300px;
   overflow: hidden;
   background: var(--surface-container);
-}
-.carousel-inner {
-  display: flex;
-  height: 100%;
-  transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
-}
-.carousel-item {
-  width: 100%;
-  height: 100%;
   flex-shrink: 0;
 }
-.carousel-item img {
-  width: 100%;
+.detail-carousel {
+  display: flex;
   height: 100%;
-  object-fit: cover;
+  transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
 }
-.carousel-dots {
+.detail-carousel-slide {
+  width: 100%; height: 100%; flex-shrink: 0;
+}
+.detail-carousel-slide img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.detail-photo-dots {
   position: absolute;
-  bottom: 16px;
+  bottom: 14px;
   left: 0; right: 0;
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  z-index: 2;
 }
-.dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.4);
+.photo-dot {
+  width: 7px; height: 7px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.45);
   transition: all 0.3s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
-.dot.active { background: #fff; width: 24px; border-radius: 4px; }
-.no-photo {
-  height: 140px;
+.photo-dot.active {
+  background: #fff;
+  width: 20px;
+}
+.detail-photo-actions {
+  position: absolute;
+  top: 0; left: 0; right: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: var(--surface-secondary);
-  color: var(--text-muted);
-  font-size: 15px;
+  padding: 10px 8px;
+  z-index: 3;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent);
+}
+.detail-action-btn {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer;
+  transition: background 0.2s;
+}
+.detail-action-btn:active { background: rgba(255,255,255,0.35); }
+.detail-action-btn.danger { color: #ff6b6b; }
+
+/* Header bar when no photo */
+.detail-header-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background: var(--surface);
   border-bottom: 1px solid var(--surface-border);
+  flex-shrink: 0;
+  gap: 4px;
 }
 
-.recipe-info {
-  padding: 20px;
+/* Scrollable body */
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  padding-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.detail-recipe-card {
   background: var(--surface);
-  margin: 16px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
+  padding: 24px 20px;
   box-shadow: var(--shadow);
   border: 1px solid var(--surface-border);
 }
-.recipe-name {
+.detail-title {
   font-size: 22px;
   font-weight: 700;
-  margin: 0 0 12px;
+  margin: 0 0 16px;
   letter-spacing: -0.3px;
+  line-height: 1.3;
   color: var(--text-main);
 }
-.recipe-content {
+.detail-text {
   font-size: 15px;
-  line-height: 1.7;
+  line-height: 1.75;
   white-space: pre-wrap;
   color: var(--text-main);
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
-.notes-section {
-  padding: 0 16px 24px;
-}
-.notes-section h3 {
-  font-size: 16px;
-  margin: 0 0 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-.notes-list { display: flex; flex-direction: column; gap: 8px; }
-.note-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+/* Notes section */
+.detail-notes-section {
   background: var(--surface);
-  padding: 14px 16px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xl);
+  padding: 20px;
   box-shadow: var(--shadow);
   border: 1px solid var(--surface-border);
 }
-.note-content { flex: 1; margin-right: 8px; }
-.note-text { font-size: 14px; margin-bottom: 4px; white-space: pre-wrap; line-height: 1.5; }
-.note-date { font-size: 11px; color: var(--text-muted); }
-
-.note-input-area {
-  position: absolute;
-  bottom: 0;
-  left: 0; right: 0;
-  background: var(--surface);
-  padding: 12px 16px;
+.notes-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  border-top: 1px solid var(--surface-border);
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
-.note-input-area input {
-  flex: 1;
-  background: var(--surface-container);
-  border: none;
-  padding: 12px 16px;
+.notes-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.notes-add-btn {
+  width: 36px; height: 36px;
   border-radius: var(--radius-full);
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.notes-add-btn:active { background: var(--primary-container); transform: scale(0.92); }
+
+.note-add-card {
+  background: var(--surface-secondary);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--surface-border);
+}
+.note-add-card input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
   font-family: var(--font-family);
   font-size: 15px;
   color: var(--text-main);
   outline: none;
+  box-sizing: border-box;
+  margin-bottom: 10px;
 }
-.btn-send {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-full);
-  background: var(--primary);
-  color: var(--text-on-primary);
+.note-add-card input:focus { border-color: var(--primary); }
+.note-add-actions {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow);
-  flex-shrink: 0;
-  border: none;
-  cursor: pointer;
-  transition: background var(--transition-fast);
+  justify-content: flex-end;
+  gap: 8px;
 }
-.btn-send:active { background: var(--primary-hover); }
+.btn-text-sm {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+.btn-primary-sm {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-on-primary);
+  background: var(--primary);
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+.btn-primary-sm:active { background: var(--primary-hover); }
+
+.notes-empty {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.notes-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.note-card {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--surface-secondary);
+  border-radius: var(--radius-md);
+  gap: 8px;
+}
+.note-card-body { flex: 1; min-width: 0; }
+.note-card-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-main);
+  white-space: pre-wrap;
+  margin-bottom: 2px;
+}
+.note-card-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.note-delete-btn {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+.note-delete-btn:active { background: var(--surface-container); color: #d32f2f; }
 
 /* Modals */
 .modal-overlay {
@@ -882,6 +983,7 @@ button {
   justify-content: flex-start;
   align-items: stretch;
   padding: 0;
+  padding-top: env(safe-area-inset-top);
   background: var(--bg-app);
 }
 .modal-header {
