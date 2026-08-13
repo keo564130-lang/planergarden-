@@ -235,6 +235,24 @@ export default async function handler(req, res) {
         }
       }
       
+      // Custom extraction for max.ru posts (channel avatar vs post content)
+      if (url.includes('max.ru/')) {
+        const textMatch = data.match(/message:\{text:\"(.*?)\"/);
+        if (textMatch) {
+           description = textMatch[1].replace(/\\n/g, '\n').replace(/\\\"/g, '"');
+        } else {
+           // Fallback to JSON-LD headline if message:text not found
+           const jsonLdMatch = data.match(/"headline":\s*"([^"]+)"/);
+           if (jsonLdMatch) {
+              description = jsonLdMatch[1];
+           }
+        }
+        const imgMatch = data.match(/attachmentType:\"MOVIE\",url:\"([^\"]+)\"/);
+        if (imgMatch) {
+           image = imgMatch[1];
+        }
+      }
+
       if ((!title || title.toLowerCase().includes('instagram')) && (!description || description.toLowerCase() === 'instagram' || !image)) {
         return res.status(422).json({ error: 'Instagram content is blocked by login wall' });
       }
