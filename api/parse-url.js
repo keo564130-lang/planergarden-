@@ -211,38 +211,9 @@ export default async function handler(req, res) {
         
         if (rapidRes.ok) {
           const rapidData = await rapidRes.json();
-          // Log it so we can see in Vercel logs if needed
-          console.log("RapidAPI response:", JSON.stringify(rapidData).substring(0, 300));
-          
-          // Robust extraction since we don't know the exact schema
-          const strData = JSON.stringify(rapidData);
-          
-          // Try to find video url
-          const videoMatch = strData.match(/"video_url"\s*:\s*"([^"]+)"/);
-          if (videoMatch) video = videoMatch[1];
-          
-          // Try to find display url (thumbnail)
-          const imageMatch = strData.match(/"display_url"\s*:\s*"([^"]+)"/) || strData.match(/"thumbnail_src"\s*:\s*"([^"]+)"/);
-          if (imageMatch) image = imageMatch[1];
-          
-          // Try to find caption text
-          // Typical graphQL: "edge_media_to_caption":{"edges":[{"node":{"text":"..."}}]}
-          const media = rapidData?.data?.xdt_shortcode_media || rapidData?.data || rapidData;
-          if (media) {
-            if (media.edge_media_to_caption?.edges?.[0]?.node?.text) {
-              description = media.edge_media_to_caption.edges[0].node.text;
-            } else if (media.caption?.text) {
-              description = media.caption.text;
-            } else if (media.caption && typeof media.caption === 'string') {
-              description = media.caption;
-            } else if (media.text) {
-              description = media.text;
-            }
-            
-            if (media.owner?.username) {
-              title = `Instagram: @${media.owner.username}`;
-            }
-          }
+          // DUMP JSON DIRECTLY TO FRONTEND FOR DEBUGGING
+          description = JSON.stringify(rapidData, null, 2);
+          title = "DEBUG JSON";
         }
       } catch(e) {
         console.error("RapidAPI instagram360 error:", e);
