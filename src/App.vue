@@ -9,7 +9,7 @@ import TableSelectorModal from './components/TableSelectorModal.vue'
 import AiChat from './components/AiChat.vue'
 import RecipesView from './components/RecipesView.vue'
 import AppSettingsModal from './components/AppSettingsModal.vue'
-import { playSuccessChime, triggerHaptic } from './utils/audio.js'
+import { triggerHaptic } from './utils/audio.js'
 
 // Base configurations
 const year = ref(2026)
@@ -27,7 +27,6 @@ const defaultSettings = {
   startTab: 'calendar',
   showTabLabels: true,
   hapticEnabled: true,
-  soundEnabled: true,
   autoRolloverTasks: false,
   photoQuality: 'medium',
   autoPlayVideo: true,
@@ -586,7 +585,6 @@ const handleToggleTask = async (taskId) => {
   if (!task) return
   task.completed = !task.completed
   if (task.completed) {
-    if (appSettings.value && appSettings.value.soundEnabled) playSuccessChime()
     if (appSettings.value && appSettings.value.hapticEnabled) triggerHaptic('success')
   } else {
     if (appSettings.value && appSettings.value.hapticEnabled) triggerHaptic('tap')
@@ -1308,14 +1306,14 @@ const headerTitle = () => {
               </div>
             </div>
 
-            <!-- 6. App Pro Settings Launch Card -->
+            <!-- 6. App Settings Launch Card -->
             <div class="settings-section">
               <div class="settings-card launch-settings-card" @click="showAppSettings = true">
                 <div class="launch-card-content">
                   <div class="launch-icon-badge">⚙️</div>
                   <div class="launch-info">
-                    <span class="launch-title">Параметры и Лаборатория</span>
-                    <span class="launch-desc">Докбар, звуки Duolingo, характер ИИ</span>
+                    <span class="launch-title">Настройки приложения</span>
+                    <span class="launch-desc">Порядок вкладок, вибрация, стиль ИИ</span>
                   </div>
                 </div>
                 <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -1807,11 +1805,14 @@ const headerTitle = () => {
 
 /* App Settings Launch Card */
 .launch-settings-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
   cursor: pointer;
   padding: 14px 16px;
+  box-sizing: border-box;
+  width: 100%;
   transition: var(--transition-fast);
 }
 .launch-settings-card:active {
@@ -1822,6 +1823,7 @@ const headerTitle = () => {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
 }
 .launch-icon-badge {
   width: 40px;
@@ -1838,6 +1840,7 @@ const headerTitle = () => {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
 }
 .launch-title {
   font-size: 14px;
@@ -1853,5 +1856,6 @@ const headerTitle = () => {
 .chevron-icon {
   color: var(--text-muted);
   flex-shrink: 0;
+  margin-left: 8px;
 }
 </style>

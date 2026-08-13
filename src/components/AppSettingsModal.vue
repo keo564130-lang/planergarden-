@@ -65,37 +65,21 @@
           </div>
         </div>
 
-        <!-- SECTION 2: DUOLINGO SOUND & HAPTIC -->
+        <!-- SECTION 2: HAPTIC FEEDBACK -->
         <div class="pro-card">
           <div class="pro-card-title">
-            <span>📳 Звуки и тактильный отклик</span>
+            <span>📳 Тактильный отклик</span>
           </div>
 
           <div class="setting-row">
             <div class="setting-text">
               <span class="setting-name">Вибрация (Haptic)</span>
-              <span class="setting-desc">Приятный тактильный щелчок при нажатиях</span>
+              <span class="setting-desc">Тактильный щелчок при выполнении задач и нажатиях</span>
             </div>
             <div class="toggle-switch" :class="{ on: settings.hapticEnabled }" @click="toggleSetting('hapticEnabled')">
               <div class="toggle-knob"></div>
             </div>
           </div>
-
-          <div class="setting-divider"></div>
-
-          <div class="setting-row">
-            <div class="setting-text">
-              <span class="setting-name">Звук завершения задачи</span>
-              <span class="setting-desc">Победный аккорд при выполнении задачи</span>
-            </div>
-            <div class="toggle-switch" :class="{ on: settings.soundEnabled }" @click="toggleSetting('soundEnabled')">
-              <div class="toggle-knob"></div>
-            </div>
-          </div>
-
-          <button class="test-sound-btn" @click="testAudioChime">
-            <span>🎵 Проверить звук выполнения</span>
-          </button>
         </div>
 
         <!-- SECTION 3: PLANNER AUTOMATION -->
@@ -212,7 +196,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { playSuccessChime, triggerHaptic } from '../utils/audio.js'
+import { triggerHaptic } from '../utils/audio.js'
 
 const props = defineProps({
   modelValue: {
@@ -222,7 +206,6 @@ const props = defineProps({
       startTab: 'calendar',
       showTabLabels: true,
       hapticEnabled: true,
-      soundEnabled: true,
       autoRolloverTasks: false,
       photoQuality: 'medium',
       autoPlayVideo: true,
@@ -294,11 +277,6 @@ const moveTab = (index, delta) => {
   settings.value.tabOrder.splice(newIndex, 0, item)
   if (settings.value.hapticEnabled) triggerHaptic('tap')
   save()
-}
-
-const testAudioChime = () => {
-  if (settings.value.hapticEnabled) triggerHaptic('success')
-  playSuccessChime()
 }
 
 const handleClearCache = () => {
@@ -530,7 +508,6 @@ const handleClearCache = () => {
   cursor: default;
 }
 
-.test-sound-btn,
 .clear-cache-btn {
   display: flex;
   align-items: center;
@@ -549,7 +526,6 @@ const handleClearCache = () => {
   margin-top: 4px;
 }
 
-.test-sound-btn:active,
 .clear-cache-btn:active {
   background: var(--primary-light);
 }
