@@ -134,7 +134,7 @@ body {
   transition: var(--transition);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   html,
   body {
     background-color: var(--bg-app);
@@ -221,7 +221,7 @@ body {
   background: var(--surface);
   flex-shrink: 0;
   z-index: 100;
-  margin: 6px 16px calc(10px + env(safe-area-inset-bottom, 0px)) 16px;
+  margin: 8px 16px 8px 16px;
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   border: 1px solid var(--surface-border);

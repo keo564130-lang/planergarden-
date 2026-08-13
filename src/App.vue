@@ -370,7 +370,7 @@ watch(recipes, (v) => { safeLocalSet('garden_planner_recipes', v) }, { deep: tru
 watch(recipeNotes, (v) => { safeLocalSet('garden_planner_recipe_notes', v) }, { deep: true })
 
 const updateMetaThemeColor = (isDark) => {
-  const themeColor = isDark ? '#1c211e' : '#ffffff'
+  const themeColor = isDark ? '#101411' : '#f3f6f4'
   
   const meta = document.getElementById('theme-meta') || document.querySelector('meta[name="theme-color"]')
   if (meta) {
@@ -381,7 +381,7 @@ const updateMetaThemeColor = (isDark) => {
   document.body.style.backgroundColor = themeColor
 }
 const updateMetaBackgroundColor = (isDark) => {
-  const backgroundColor = isDark ? '#1c211e' : '#ffffff'
+  const backgroundColor = isDark ? '#101411' : '#f3f6f4'
   
   const meta = document.getElementById('background-meta') || document.querySelector('meta[name="background-color"]')
   if (meta) {
@@ -396,6 +396,8 @@ watch(isDarkMode, (newVal) => {
   try { localStorage.setItem('garden_planner_dark_mode', newVal) } catch(e) {}
   if (newVal) { document.documentElement.classList.add('dark-theme') }
   else { document.documentElement.classList.remove('dark-theme') }
+  updateMetaThemeColor(newVal)
+  updateMetaBackgroundColor(newVal)
 })
 
 const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value }
