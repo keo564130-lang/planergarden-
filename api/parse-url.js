@@ -31,8 +31,14 @@ export default async function handler(req, res) {
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
-  const { url } = req.body
+  let { url } = req.body
   if (!url) return res.status(400).json({ error: 'URL required' })
+
+  // For VK Clips, the `/clip` endpoint doesn't return og:tags in the HTML.
+  // We rewrite it to `/video` which returns the correct og:description and og:image.
+  if (url.includes('vk.com/clip')) {
+    url = url.replace('vk.com/clip', 'vk.com/video')
+  }
 
   try {
     const response = await fetch(url, {
