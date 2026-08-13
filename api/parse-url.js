@@ -220,13 +220,18 @@ export default async function handler(req, res) {
              for (const key in obj) {
                 const val = obj[key];
                 if (typeof val === 'string') {
-                   if ((key.includes('video_url') || key.includes('videoUrl')) && !foundVideo) {
+                   // Ищем ЛЮБУЮ ссылку на mp4 или видео
+                   if ((val.includes('.mp4') || key.includes('video_url') || key.includes('videoUrl')) && !foundVideo) {
                       if (val.startsWith('http')) foundVideo = val;
                    }
-                   if ((key.includes('display_url') || key.includes('thumbnail_src')) && !foundImage) {
-                      if (val.startsWith('http')) foundImage = val;
+                   // Ищем ЛЮБУЮ картинку (jpg/png), если в ключе есть url, pic или image
+                   if (val.startsWith('http') && (val.includes('.jpg') || val.includes('.webp')) && !foundImage) {
+                      if (key.toLowerCase().includes('url') || key.toLowerCase().includes('pic') || key.toLowerCase().includes('image') || key.toLowerCase().includes('display')) {
+                         foundImage = val;
+                      }
                    }
-                   if ((key === 'text' || key === 'caption') && val.length > 20) {
+                   // Ищем ЛЮБОЙ текст длиннее 30 символов, который не является ссылкой
+                   if (val.length > 30 && !val.startsWith('http') && !val.includes('{')) {
                       if (!foundText || val.length > foundText.length) {
                          foundText = val;
                       }
