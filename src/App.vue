@@ -409,14 +409,14 @@ const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value }
 
 // --- Settings, Customization & Features ---
 const availableThemes = [
-  { name: 'Изумруд', hue: 142, emoji: '🌿', color: 'hsl(142, 44%, 40%)' },
-  { name: 'Океан', hue: 200, emoji: '🌊', color: 'hsl(200, 70%, 45%)' },
-  { name: 'Сапфир', hue: 225, emoji: '🫐', color: 'hsl(225, 65%, 50%)' },
-  { name: 'Лаванда', hue: 275, emoji: '🍇', color: 'hsl(275, 55%, 50%)' },
-  { name: 'Малина', hue: 335, emoji: '🌺', color: 'hsl(335, 65%, 48%)' },
-  { name: 'Янтарь', hue: 35, emoji: '🍊', color: 'hsl(35, 80%, 45%)' }
+  { name: 'Шалфей', hue: 145, color: 'hsl(145, 32%, 42%)' },
+  { name: 'Бриз', hue: 198, color: 'hsl(198, 35%, 44%)' },
+  { name: 'Индиго', hue: 220, color: 'hsl(220, 30%, 48%)' },
+  { name: 'Лаванда', hue: 265, color: 'hsl(265, 26%, 52%)' },
+  { name: 'Пудра', hue: 345, color: 'hsl(345, 28%, 50%)' },
+  { name: 'Песок', hue: 38, color: 'hsl(38, 40%, 44%)' }
 ]
-const currentHue = ref(parseInt(localStorage.getItem('garden_planner_primary_hue')) || 142)
+const currentHue = ref(parseInt(localStorage.getItem('garden_planner_primary_hue')) || 145)
 const setAccentTheme = (hue) => {
   currentHue.value = hue
   localStorage.setItem('garden_planner_primary_hue', hue)
@@ -1100,7 +1100,7 @@ const headerTitle = () => {
                 <div class="profile-avatar">{{ displayUsername.charAt(0).toUpperCase() }}</div>
                 <div class="profile-info">
                   <span class="profile-name">{{ displayUsername }}</span>
-                  <span class="profile-sub">Синхронизация с облаком активна ☁️</span>
+                  <span class="profile-sub">Синхронизация активна ☁️</span>
                 </div>
               </div>
             </div>
@@ -1108,7 +1108,7 @@ const headerTitle = () => {
               <div class="auth-card">
                 <div class="auth-icon">🔐</div>
                 <h3 class="auth-title">{{ authMode === 'login' ? 'Вход в аккаунт' : 'Создание аккаунта' }}</h3>
-                <p class="auth-subtitle">{{ authMode === 'login' ? 'Войдите чтобы синхронизировать данные' : 'Придумайте имя и пароль' }}</p>
+                <p class="auth-subtitle">{{ authMode === 'login' ? 'Войдите для синхронизации данных' : 'Придумайте имя и пароль' }}</p>
                 <div class="auth-form">
                   <input v-model="authUsername" type="text" :placeholder="authMode === 'login' ? 'Ваше имя' : 'Придумайте имя'" class="auth-input" autocomplete="username" autocapitalize="off" />
                   <input v-model="authPassword" type="password" :placeholder="authMode === 'login' ? 'Пароль' : 'Придумайте пароль'" class="auth-input" autocomplete="current-password" @keyup.enter="handleAuth" />
@@ -1127,20 +1127,40 @@ const headerTitle = () => {
             <div class="settings-section">
               <div class="stats-grid">
                 <div class="stat-card">
-                  <span class="stat-num">{{ stats.completedTasks }}</span>
-                  <span class="stat-label">✅ Выполнено</span>
+                  <div class="stat-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </div>
+                  <div class="stat-content">
+                    <span class="stat-num">{{ stats.completedTasks }}</span>
+                    <span class="stat-label">Выполнено</span>
+                  </div>
                 </div>
                 <div class="stat-card">
-                  <span class="stat-num">{{ stats.totalRecipes }}</span>
-                  <span class="stat-label">🍳 Рецептов</span>
+                  <div class="stat-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16M4 15h16M8 11V5a2 2 0 1 1 4 0v6M14 11V7a2 2 0 1 1 4 0v4"></path></svg>
+                  </div>
+                  <div class="stat-content">
+                    <span class="stat-num">{{ stats.totalRecipes }}</span>
+                    <span class="stat-label">Рецептов</span>
+                  </div>
                 </div>
                 <div class="stat-card">
-                  <span class="stat-num">{{ stats.totalNotes }}</span>
-                  <span class="stat-label">📝 Заметок</span>
+                  <div class="stat-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  </div>
+                  <div class="stat-content">
+                    <span class="stat-num">{{ stats.totalNotes }}</span>
+                    <span class="stat-label">Заметок</span>
+                  </div>
                 </div>
                 <div class="stat-card">
-                  <span class="stat-num">{{ stats.totalChats }}</span>
-                  <span class="stat-label">🤖 ИИ-диалогов</span>
+                  <div class="stat-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                  </div>
+                  <div class="stat-content">
+                    <span class="stat-num">{{ stats.totalChats }}</span>
+                    <span class="stat-label">ИИ-чатов</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1148,28 +1168,29 @@ const headerTitle = () => {
             <!-- 3. Appearance (Theme & Accents) -->
             <div class="settings-section">
               <div class="settings-card">
-                <div class="settings-item-header">
-                  <span>🎨 Цветовая тема</span>
+                <div class="settings-card-header">
+                  <span class="header-title">🎨 Палитра приложения</span>
                 </div>
-                <div class="theme-bubbles">
+                <div class="theme-bubbles-grid">
                   <button 
                     v-for="t in availableThemes" 
                     :key="t.hue" 
-                    class="theme-bubble-btn"
+                    class="theme-pill-btn"
                     :class="{ active: currentHue === t.hue }"
-                    :style="{ '--bubble-color': t.color }"
                     @click="setAccentTheme(t.hue)"
-                    :title="t.name"
                   >
-                    <span class="bubble-preview"></span>
-                    <span class="bubble-name">{{ t.name }}</span>
+                    <span class="color-dot" :style="{ background: t.color }"></span>
+                    <span class="color-text">{{ t.name }}</span>
                   </button>
                 </div>
 
                 <div class="settings-divider"></div>
 
-                <div class="settings-item no-border" @click="toggleDarkMode">
-                  <span>🌙 Тёмная тема</span>
+                <div class="settings-item-row" @click="toggleDarkMode">
+                  <div class="item-left">
+                    <span>🌙</span>
+                    <span>Тёмная тема</span>
+                  </div>
                   <div class="toggle-switch" :class="{ on: isDarkMode }"><div class="toggle-knob"></div></div>
                 </div>
               </div>
@@ -1177,50 +1198,60 @@ const headerTitle = () => {
 
             <!-- 4. Garden Tip of the Day -->
             <div class="settings-section">
-              <div class="tip-card">
-                <div class="tip-header">
-                  <span class="tip-title">💡 Совет дня</span>
-                  <button class="tip-refresh-btn" @click="nextTip">🎲 Другой совет</button>
+              <div class="settings-card tip-card-clean">
+                <div class="tip-top-row">
+                  <span class="tip-title">✨ Совет дня</span>
+                  <button class="tip-refresh-btn" @click="nextTip">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    <span>Другой совет</span>
+                  </button>
                 </div>
-                <p class="tip-text">{{ gardenTips[currentTipIndex] }}</p>
+                <p class="tip-body-text">{{ gardenTips[currentTipIndex] }}</p>
               </div>
             </div>
 
             <!-- 5. Backup & Tools -->
             <div class="settings-section">
               <div class="settings-card">
-                <div class="settings-item-header">
-                  <span>💾 Резервная копия и данные</span>
+                <div class="settings-card-header">
+                  <span class="header-title">💾 Резервная копия</span>
                 </div>
                 <div class="backup-actions">
-                  <button class="btn-backup export" @click="exportBackup">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    <span>Скачать копию (JSON)</span>
+                  <button class="btn-backup" @click="exportBackup">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span>Скачать JSON</span>
                   </button>
-                  <button class="btn-backup import" @click="triggerImport">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    <span>Восстановить из файла</span>
+                  <button class="btn-backup" @click="triggerImport">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <span>Восстановить</span>
                   </button>
                   <input type="file" ref="restoreFileInput" accept=".json" @change="handleImportBackup" hidden>
                 </div>
 
                 <div class="settings-divider"></div>
 
-                <div class="settings-item no-border">
-                  <span>🔔 Уведомления</span>
+                <div class="settings-item-row">
+                  <div class="item-left">
+                    <span>🔔</span>
+                    <span>Уведомления</span>
+                  </div>
                   <span class="settings-value">{{ notificationStatus }}</span>
                 </div>
               </div>
             </div>
 
-            <!-- 6. About & Logout -->
-            <div class="settings-section">
+            <!-- 6. About & Author Credit -->
+            <div class="settings-section footer-section">
               <div class="about-card">
                 <div class="about-logo">🌱</div>
                 <div class="about-info">
                   <div class="about-title">Дачный и Домашний Планер</div>
                   <div class="about-ver">Версия 2.5 • Offline Ready PWA ⚡</div>
                 </div>
+              </div>
+
+              <div class="author-badge">
+                Сделано aleshadev ❤️
               </div>
 
               <button v-if="isRealAccount" class="auth-btn logout-btn" @click="handleLogout">
@@ -1427,28 +1458,48 @@ const headerTitle = () => {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stat-icon-wrap {
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  min-width: 0;
 }
 .stat-num {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--text-main);
   font-family: var(--font-family);
+  line-height: 1.1;
 }
 .stat-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
   font-weight: 500;
   font-family: var(--font-family);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Settings Card & Headers */
@@ -1456,13 +1507,13 @@ const headerTitle = () => {
   background: var(--surface);
   border-radius: var(--radius-lg);
   border: 1px solid var(--surface-border);
-  padding: 16px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
-.settings-item-header {
-  font-size: 14px;
+.settings-card-header {
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-main);
   font-family: var(--font-family);
@@ -1470,72 +1521,92 @@ const headerTitle = () => {
 .settings-divider {
   height: 1px;
   background: var(--surface-border);
-  margin: 4px 0;
+  margin: 2px 0;
 }
-.settings-item.no-border {
-  border: none;
-  padding: 8px 0;
-  background: transparent;
+.settings-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-main);
+  font-family: var(--font-family);
 }
-
-/* Theme Bubbles */
-.theme-bubbles {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.theme-bubble-btn {
+.item-left {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Theme Bubbles — Grid perfectly fitting card */
+.theme-bubbles-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.theme-pill-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: var(--surface-secondary);
-  border: 2px solid transparent;
+  border: 1.5px solid transparent;
   border-radius: var(--radius-full);
-  padding: 8px 12px;
+  padding: 7px 4px;
   cursor: pointer;
   transition: var(--transition-fast);
   font-family: var(--font-family);
+  min-width: 0;
+  box-sizing: border-box;
 }
-.theme-bubble-btn.active {
-  border-color: var(--bubble-color);
+.theme-pill-btn.active {
+  border-color: var(--primary);
   background: var(--primary-light);
 }
-.bubble-preview {
-  width: 14px;
-  height: 14px;
+.color-dot {
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: var(--bubble-color);
   flex-shrink: 0;
 }
-.bubble-name {
-  font-size: 12px;
+.color-text {
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Tip Card */
-.tip-card {
-  background: linear-gradient(135deg, var(--primary-light), var(--surface));
+/* Tip Card Clean (Matching surface cards) */
+.tip-card-clean {
+  background: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
-  padding: 18px 20px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
-.tip-header {
+.tip-top-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 .tip-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--primary);
   font-family: var(--font-family);
 }
 .tip-refresh-btn {
-  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface-secondary);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-full);
   padding: 4px 10px;
@@ -1548,10 +1619,11 @@ const headerTitle = () => {
 }
 .tip-refresh-btn:active {
   transform: scale(0.95);
+  background: var(--primary-light);
 }
-.tip-text {
-  font-size: 14px;
-  line-height: 1.5;
+.tip-body-text {
+  font-size: 13.5px;
+  line-height: 1.45;
   color: var(--text-main);
   font-family: var(--font-family);
   margin: 0;
@@ -1561,51 +1633,64 @@ const headerTitle = () => {
 .backup-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 .btn-backup {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 6px;
+  padding: 10px 10px;
   border-radius: var(--radius-md);
   border: 1px solid var(--surface-border);
   background: var(--surface-secondary);
   color: var(--text-main);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   font-family: var(--font-family);
   cursor: pointer;
   transition: var(--transition-fast);
+  white-space: nowrap;
 }
 .btn-backup:active {
   background: var(--primary-light);
   color: var(--primary);
 }
 
-/* About Card */
+/* About & Footer */
 .about-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 14px 16px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
 }
 .about-logo {
-  font-size: 32px;
+  font-size: 28px;
 }
 .about-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-main);
   font-family: var(--font-family);
 }
 .about-ver {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-muted);
   font-family: var(--font-family);
+}
+
+/* Author Credit */
+.author-badge {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 8px 0 2px;
+  font-family: var(--font-family);
+  letter-spacing: 0.2px;
+  opacity: 0.85;
 }
 </style>
