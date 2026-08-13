@@ -40,6 +40,11 @@ export default async function handler(req, res) {
     url = url.replace('vk.com/clip', 'vk.com/video')
   }
 
+  // Rewrite to mobile VK to bypass "Unsupported browser" blocks
+  if (url.includes('vk.com') && !url.includes('m.vk.com')) {
+    url = url.replace('vk.com', 'm.vk.com')
+  }
+
   // For Telegram, we need to use the embed widget to get metadata
   if (url.includes('t.me/') && !url.includes('?embed=1') && !url.includes('&embed=1')) {
     url = url + (url.includes('?') ? '&embed=1' : '?embed=1')
