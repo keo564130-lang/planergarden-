@@ -328,12 +328,25 @@ const parseLink = async () => {
       }
     }
     
+    // Fallback for generic VK titles
+    let finalTitle = data.title || ''
+    const genericTitles = ['ВКонтакте', 'VK', 'Wall posts', 'Пост на стене', 'VKontakte']
+    if (genericTitles.includes(finalTitle) || !finalTitle) {
+      if (data.description) {
+        // Take the first line or sentence as title
+        const firstLine = data.description.split('\n')[0].trim()
+        finalTitle = firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine
+      } else {
+        finalTitle = 'Новый рецепт'
+      }
+    }
+    
     // Fill recipe form
     isEditing.value = false
     editingRecipe.value = {
       id: null,
       category_id: props.categories.length ? props.categories[0].id : null,
-      name: data.title || '',
+      name: finalTitle,
       content: data.description || '',
       photos: [],
       note: ''
