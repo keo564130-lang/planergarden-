@@ -193,10 +193,10 @@ export default async function handler(req, res) {
       if (fullCaption) {
         description = decodeEntities(fullCaption).trim()
       } else if (description) {
-        // Strip "123 likes, 4 comments - username on August 13, 2026: "
-        // Strip "123 отметок «Нравится», 4 комментариев — username в Instagram: "
-        const instaMatch = description.match(/^.*?(?:on [A-Za-z]+ \d+, \d{4}|в Instagram):\s*"([\s\S]*?)"?$/i) || 
-                           description.match(/^.*?(?:on [A-Za-z]+ \d+, \d{4}|в Instagram):\s*([\s\S]*)$/i)
+        // Strip Instagram metadata prefix like "123 likes, 4 comments - username on August 13, 2026: "
+        // or Russian "123 отметок «Нравится», 4 комментариев — username в Instagram: "
+        const instaRegex = /^[\s\S]*?(?:likes|Нравится)[\s\S]*?(?:comments|комментари)[\s\S]*?(?:-|—)[\s\S]*?:\s*"?([\s\S]*?)"?$/i
+        const instaMatch = description.match(instaRegex)
         if (instaMatch && instaMatch[1]) {
           description = instaMatch[1].trim()
         }
