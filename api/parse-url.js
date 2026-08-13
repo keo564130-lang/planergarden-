@@ -172,6 +172,17 @@ export default async function handler(req, res) {
       }
     }
 
+    let image = getOg('image') || ''
+
+    if (url.includes('t.me/')) {
+      const tgImgRegex1 = /class=["'][^"']*(?:tgme_widget_message_photo_wrap|tgme_widget_message_video_thumb|link_preview_image|tgme_widget_message_photo_image)[^"']*["'][^>]*style=["'][^"']*background-image:url\(['"]?([^'"]+)['"]?\)/i
+      const tgImgRegex2 = /style=["'][^"']*background-image:url\(['"]?([^'"]+)['"]?\)[^"']*["'][^>]*class=["'][^"']*(?:tgme_widget_message_photo_wrap|tgme_widget_message_video_thumb|link_preview_image|tgme_widget_message_photo_image)[^"']*["']/i
+      const tgImgMatch = html.match(tgImgRegex1) || html.match(tgImgRegex2)
+      if (tgImgMatch && tgImgMatch[1]) {
+        image = decodeEntities(tgImgMatch[1])
+      }
+    }
+
     // Instagram specific extraction
     if (url.includes('instagram.com')) {
       // Clean up Instagram title (which sometimes contains the full post)
