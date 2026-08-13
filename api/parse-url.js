@@ -172,6 +172,37 @@ export default async function handler(req, res) {
       }
     }
 
+    // Instagram specific extraction
+    if (url.includes('instagram.com')) {
+      // Try to find the full caption in ld+json
+      let fullCaption = null
+      const jsonMatches = html.match(/<script type=["']application\/ld\+json["']>([\s\S]*?)<\/script>/gi)
+      if (jsonMatches) {
+        for (const m of jsonMatches) {
+          try {
+            const inner = m.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '')
+            const parsed = JSON.parse(inner)
+            if (parsed.articleBody) {
+              fullCaption = parsed.articleBody
+              break
+            }
+          } catch (e) {}
+        }
+      }
+      
+      if (fullCaption) {
+        description = decodeEntities(fullCaption).trim()
+      } else if (description) {
+        // Strip "123 likes, 4 comments - username on August 13, 2026: "
+        // Strip "123 отметок «Нравится», 4 комментариев — username в Instagram: "
+        const instaMatch = description.match(/^.*?(?:on [A-Za-z]+ \d+, \d{4}|в Instagram):\s*"([\s\S]*?)"?$/i) || 
+                           description.match(/^.*?(?:on [A-Za-z]+ \d+, \d{4}|в Instagram):\s*([\s\S]*)$/i)
+        if (instaMatch && instaMatch[1]) {
+          description = instaMatch[1].trim()
+        }
+      }
+    }
+
     let image = getOg('image') || ''
     
     // Fallback for VK images if og:image is missing or broken
@@ -213,6 +244,7 @@ export default async function handler(req, res) {
 }
 
 function decodeEntities(str) {
+  if (!str) return ''
   return str
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -220,6 +252,6 @@ function decodeEntities(str) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ')
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(parseInt(d)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d)))
 }
