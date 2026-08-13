@@ -306,7 +306,9 @@ watch(() => props.shareData, (newVal) => {
       name: newVal.title || '',
       content: newVal.text || '',
       photos: newVal.photos ? [...newVal.photos] : [],
-      note: ''
+      note: '',
+      tags: [],
+      color: 'default'
     }
     showRecipeModal.value = true
     emit('clear-share-data')
@@ -426,7 +428,9 @@ const parseLink = async () => {
       name: finalTitle,
       content: data.description || '',
       photos: [],
-      note: ''
+      note: '',
+      tags: [],
+      color: 'default'
     }
     
     // Try to load image: first directly (VK allows CORS), then via proxy
