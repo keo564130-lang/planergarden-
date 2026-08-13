@@ -264,8 +264,10 @@ const adjustTextareaHeight = (e) => {
                 <span class="name">{{ cat.name }}</span>
               </div>
               <div class="cat-actions">
-                <button class="btn-icon muted small" @click="deleteCategory(cat.id, $event)">✕</button>
-                <span class="chevron" :class="{'up': expandedCategories.has(cat.id)}">▼</span>
+                <button class="btn-icon muted small" @click="deleteCategory(cat.id, $event)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+                <svg class="chevron-icon" :class="{'up': expandedCategories.has(cat.id)}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </div>
             </div>
             
@@ -292,10 +294,16 @@ const adjustTextareaHeight = (e) => {
       <!-- VIEW 2: RECIPE DETAIL -->
       <div v-else-if="currentView === 'detail' && selectedRecipe" class="view detail-view" key="detail">
         <div class="detail-header">
-          <button class="btn-icon" @click="backToList">←</button>
+          <button class="btn-icon" @click="backToList">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
           <div class="spacer"></div>
-          <button class="btn-icon" @click="openEditRecipe">✎</button>
-          <button class="btn-icon delete-btn" @click="deleteCurrentRecipe">✕</button>
+          <button class="btn-icon" @click="openEditRecipe">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </button>
+          <button class="btn-icon delete-btn" @click="deleteCurrentRecipe">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
         </div>
         
         <div class="detail-scroll">
@@ -327,7 +335,9 @@ const adjustTextareaHeight = (e) => {
                   <div class="note-text">{{ note.text }}</div>
                   <div class="note-date">{{ new Date(note.created_at).toLocaleDateString('ru-RU') }}</div>
                 </div>
-                <button class="btn-icon muted small" @click="deleteNote(note.id)">✕</button>
+                <button class="btn-icon muted small" @click="deleteNote(note.id)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
               </div>
             </div>
           </div>
@@ -335,7 +345,9 @@ const adjustTextareaHeight = (e) => {
         
         <div class="note-input-area">
           <input type="text" v-model="newNoteText" placeholder="Новая заметка..." @keyup.enter="addNote">
-          <button class="btn-icon send-btn" @click="addNote">↑</button>
+          <button class="btn-send" @click="addNote">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
         </div>
       </div>
     </transition>
@@ -549,7 +561,7 @@ button {
 }
 .m3-card {
   background: var(--surface);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   border: 1px solid var(--surface-border);
   overflow: hidden;
@@ -570,13 +582,13 @@ button {
   font-weight: 500;
 }
 .cat-title .emoji { font-size: 24px; }
-.cat-actions { display: flex; align-items: center; gap: 8px; }
-.chevron {
-  font-size: 12px;
+.cat-actions { display: flex; align-items: center; gap: 4px; }
+.chevron-icon {
   color: var(--text-muted);
   transition: transform var(--transition);
+  flex-shrink: 0;
 }
-.chevron.up { transform: rotate(180deg); }
+.chevron-icon.up { transform: rotate(180deg); }
 
 .category-content {
   padding: 0 16px 16px;
@@ -593,19 +605,21 @@ button {
   display: flex;
   justify-content: space-between;
   background: var(--surface);
-  padding: 12px;
-  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow);
   cursor: pointer;
   align-items: center;
+  transition: background var(--transition-fast);
 }
+.recipe-item:active { background: var(--surface-secondary); }
 .recipe-item-info { flex: 1; overflow: hidden; }
-.recipe-item-name { font-weight: 500; font-size: 16px; margin-bottom: 4px; }
-.recipe-item-preview { font-size: 14px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recipe-item-name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+.recipe-item-preview { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .recipe-item-photo {
   width: 48px;
   height: 48px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   margin-left: 12px;
   flex-shrink: 0;
@@ -778,16 +792,26 @@ button {
   padding: 12px 16px;
   border-radius: var(--radius-full);
   font-family: var(--font-family);
-  font-size: 16px;
+  font-size: 15px;
   color: var(--text-main);
   outline: none;
 }
-.send-btn {
+.btn-send {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
   background: var(--primary);
   color: var(--text-on-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: var(--shadow);
+  flex-shrink: 0;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
 }
-.send-btn:hover { background: var(--primary-hover); }
+.btn-send:active { background: var(--primary-hover); }
 
 /* Modals */
 .modal-overlay {
@@ -854,7 +878,12 @@ button {
 }
 
 /* Full Modal */
-.full-modal { justify-content: flex-start; background: var(--bg-app); }
+.full-modal {
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 0;
+  background: var(--bg-app);
+}
 .modal-header {
   display: flex;
   align-items: center;
@@ -862,9 +891,17 @@ button {
   padding: 12px 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--surface-border);
-  padding-top: calc(12px + env(safe-area-inset-top));
+  gap: 12px;
+  min-height: 56px;
+  flex-shrink: 0;
 }
-.modal-header h3 { margin: 0; font-size: 18px; font-weight: 600; }
+.modal-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  flex: 1;
+  text-align: center;
+}
 .modal-body {
   flex: 1;
   overflow-y: auto;
@@ -884,7 +921,7 @@ button {
   position: relative;
   width: 72px; height: 72px;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: var(--shadow);
 }
@@ -892,17 +929,18 @@ button {
 .remove-photo {
   position: absolute;
   top: 4px; right: 4px;
-  width: 20px; height: 20px;
+  width: 22px; height: 22px;
   background: rgba(0,0,0,0.6);
   color: #fff;
   border-radius: 50%;
   font-size: 12px;
   display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer;
 }
 .add-photo-btn {
   width: 72px; height: 72px;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--surface-container);
   border: 2px dashed var(--surface-border);
   display: flex; align-items: center; justify-content: center;
