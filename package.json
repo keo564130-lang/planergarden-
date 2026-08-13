@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
+    "instagram-url-direct": "^2.0.7",
     "sortablejs": "^1.15.7",
     "vue": "^3.5.39",
     "web-push": "^3.6.7"

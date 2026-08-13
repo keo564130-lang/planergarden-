@@ -235,7 +235,7 @@ export default async function handler(req, res) {
         }
       }
       
-      if ((!title || title.toLowerCase() === 'instagram') && !description) {
+      if ((!title || title.toLowerCase().includes('instagram')) && (!description || description.toLowerCase() === 'instagram' || !image)) {
         return res.status(422).json({ error: 'Instagram content is blocked by login wall' });
       }
     }

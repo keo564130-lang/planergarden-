@@ -411,6 +411,11 @@ const parseLink = async () => {
         throw new Error('Не удалось проанализировать ссылку. Возможно она закрыта настройками приватности.')
       }
       
+      const mTitle = mData.data.title || '';
+      if (url.includes('instagram.com/') && mTitle.toLowerCase().includes('instagram') && !mData.data.image?.url) {
+         throw new Error('К сожалению, Instagram полностью блокирует автоматическое скачивание. Пожалуйста, вставьте текст и фото вручную.');
+      }
+      
       data = {
         title: mData.data.title || '',
         description: mData.data.description || '',

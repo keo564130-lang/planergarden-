@@ -1,1 +1,0 @@
-fetch('https://www.instagram.com/reel/C8qL8Zsoq6n/embed/captioned').then(r => r.text()).then(t => console.log(t.substring(0, 1000) + '\n\n' + t.match(/<img.*?src=\"(.*?)\"/)?.[0] + '\n\n' + t.match(/<div.*?Caption.*?>(.*?)<\/div>/i)?.[0])).catch(e => console.log('Error', e));
