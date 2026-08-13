@@ -229,7 +229,7 @@ const checkNotifications = async () => {
 
 // Load cache and setup Auth on mount
 onMounted(async () => {
-  // 1. Load dark mode
+  // 1. Load dark mode & theme hue
   const savedDarkMode = localStorage.getItem('garden_planner_dark_mode')
   if (savedDarkMode !== null) {
     isDarkMode.value = savedDarkMode === 'true'
@@ -237,6 +237,11 @@ onMounted(async () => {
     isDarkMode.value = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
   }
   updateMetaThemeColor(isDarkMode.value)
+
+  const savedHue = localStorage.getItem('garden_planner_primary_hue')
+  if (savedHue) {
+    document.documentElement.style.setProperty('--primary-hue', savedHue)
+  }
 
   // 1b. MutationObserver: automatically sync theme-color meta whenever dark-theme class changes on <html>
   const themeObserver = new MutationObserver(() => {
@@ -401,6 +406,94 @@ watch(isDarkMode, (newVal) => {
 })
 
 const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value }
+
+// --- Settings, Customization & Features ---
+const availableThemes = [
+  { name: 'Изумруд', hue: 142, emoji: '🌿', color: 'hsl(142, 44%, 40%)' },
+  { name: 'Океан', hue: 200, emoji: '🌊', color: 'hsl(200, 70%, 45%)' },
+  { name: 'Сапфир', hue: 225, emoji: '🫐', color: 'hsl(225, 65%, 50%)' },
+  { name: 'Лаванда', hue: 275, emoji: '🍇', color: 'hsl(275, 55%, 50%)' },
+  { name: 'Малина', hue: 335, emoji: '🌺', color: 'hsl(335, 65%, 48%)' },
+  { name: 'Янтарь', hue: 35, emoji: '🍊', color: 'hsl(35, 80%, 45%)' }
+]
+const currentHue = ref(parseInt(localStorage.getItem('garden_planner_primary_hue')) || 142)
+const setAccentTheme = (hue) => {
+  currentHue.value = hue
+  localStorage.setItem('garden_planner_primary_hue', hue)
+  document.documentElement.style.setProperty('--primary-hue', hue)
+}
+
+const stats = computed(() => {
+  const completed = tasks.value.filter(t => t.completed).length
+  return {
+    completedTasks: completed,
+    totalTasks: tasks.value.length,
+    totalRecipes: recipes.value.length,
+    totalNotes: recipeNotes.value.length,
+    totalChats: aiChats.value.length
+  }
+})
+
+const exportBackup = () => {
+  const backupData = {
+    version: '2.5',
+    date: new Date().toISOString(),
+    tasks: tasks.value,
+    dayTables: dayTables.value,
+    recipeCategories: recipeCategories.value,
+    recipes: recipes.value,
+    recipeNotes: recipeNotes.value,
+    aiChats: aiChats.value,
+    allAiMessages: allAiMessages.value
+  }
+  const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `planer-backup-${new Date().toISOString().slice(0, 10)}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const restoreFileInput = ref(null)
+const triggerImport = () => { restoreFileInput.value?.click() }
+const handleImportBackup = (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    try {
+      const data = JSON.parse(event.target.result)
+      if (data.tasks) tasks.value = data.tasks
+      if (data.dayTables) dayTables.value = data.dayTables
+      if (data.recipeCategories) recipeCategories.value = data.recipeCategories
+      if (data.recipes) recipes.value = data.recipes
+      if (data.recipeNotes) recipeNotes.value = data.recipeNotes
+      if (data.aiChats) aiChats.value = data.aiChats
+      if (data.allAiMessages) allAiMessages.value = data.allAiMessages
+      alert('Данные успешно восстановлены! 🎉')
+    } catch (err) {
+      alert('Ошибка при чтении файла резервной копии: ' + err.message)
+    }
+  }
+  reader.readAsText(file)
+  e.target.value = ''
+}
+
+const gardenTips = [
+  '🌱 Поливайте растения рано утром или на закате, чтобы влага не испарялась на полуденном солнце.',
+  '🍅 Пасынкуйте помидоры вовремя: оставляйте 1-2 главных стебля для максимального урожая.',
+  '🌿 Базилик и томаты — идеальные соседи на грядке: они улучшают вкус друг друга и отпугивают вредителей.',
+  '🥒 Огурцы любят теплую воду: холодная вода из скважины может вызвать горечь плодов.',
+  '🧅 Мульчирование скошенной травой сохраняет влагу в почве и подавляет рост сорняков.',
+  '🍓 Чтобы клубника была слаще, в период созревания уменьшите полив и дайте ей больше солнца.',
+  '🍳 Секрет хрустящей корочки: промокните продукт бумажным полотенцем перед жаркой!',
+  '🫙 Храните свежую зелень как букет цветов в стакане с водой в дверце холодильника.'
+]
+const currentTipIndex = ref(Math.floor(Math.random() * gardenTips.length))
+const nextTip = () => {
+  currentTipIndex.value = (currentTipIndex.value + 1) % gardenTips.length
+}
 
 // Navigation
 const handleBack = () => {
@@ -999,25 +1092,17 @@ const headerTitle = () => {
             @clear-share-data="handleClearShareData"
           />
 
-          <!-- SETTINGS TAB (placeholder) -->
+          <!-- SETTINGS TAB -->
           <div v-if="activeTab === 'settings'" class="settings-page">
+            <!-- 1. Profile / Auth Section -->
             <div v-if="isRealAccount" class="settings-section">
               <div class="profile-card">
                 <div class="profile-avatar">{{ displayUsername.charAt(0).toUpperCase() }}</div>
                 <div class="profile-info">
                   <span class="profile-name">{{ displayUsername }}</span>
-                  <span class="profile-sub">Данные синхронизируются ☁️</span>
+                  <span class="profile-sub">Синхронизация с облаком активна ☁️</span>
                 </div>
               </div>
-              <div class="settings-item" @click="toggleDarkMode">
-                <span>🌙 Тёмная тема</span>
-                <div class="toggle-switch" :class="{ on: isDarkMode }"><div class="toggle-knob"></div></div>
-              </div>
-              <div class="settings-item">
-                <span>🔔 Уведомления</span>
-                <span class="settings-value">{{ notificationStatus }}</span>
-              </div>
-              <button class="auth-btn logout-btn" @click="handleLogout">Выйти из аккаунта</button>
             </div>
             <div v-else class="settings-section">
               <div class="auth-card">
@@ -1036,10 +1121,111 @@ const headerTitle = () => {
                   {{ authMode === 'login' ? 'Нет аккаунта? Создать' : 'Уже есть аккаунт? Войти' }}
                 </button>
               </div>
-              <div class="settings-item" @click="toggleDarkMode">
-                <span>🌙 Тёмная тема</span>
-                <div class="toggle-switch" :class="{ on: isDarkMode }"><div class="toggle-knob"></div></div>
+            </div>
+
+            <!-- 2. Mini Stats Dashboard -->
+            <div class="settings-section">
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <span class="stat-num">{{ stats.completedTasks }}</span>
+                  <span class="stat-label">✅ Выполнено</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-num">{{ stats.totalRecipes }}</span>
+                  <span class="stat-label">🍳 Рецептов</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-num">{{ stats.totalNotes }}</span>
+                  <span class="stat-label">📝 Заметок</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-num">{{ stats.totalChats }}</span>
+                  <span class="stat-label">🤖 ИИ-диалогов</span>
+                </div>
               </div>
+            </div>
+
+            <!-- 3. Appearance (Theme & Accents) -->
+            <div class="settings-section">
+              <div class="settings-card">
+                <div class="settings-item-header">
+                  <span>🎨 Цветовая тема</span>
+                </div>
+                <div class="theme-bubbles">
+                  <button 
+                    v-for="t in availableThemes" 
+                    :key="t.hue" 
+                    class="theme-bubble-btn"
+                    :class="{ active: currentHue === t.hue }"
+                    :style="{ '--bubble-color': t.color }"
+                    @click="setAccentTheme(t.hue)"
+                    :title="t.name"
+                  >
+                    <span class="bubble-preview"></span>
+                    <span class="bubble-name">{{ t.name }}</span>
+                  </button>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <div class="settings-item no-border" @click="toggleDarkMode">
+                  <span>🌙 Тёмная тема</span>
+                  <div class="toggle-switch" :class="{ on: isDarkMode }"><div class="toggle-knob"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Garden Tip of the Day -->
+            <div class="settings-section">
+              <div class="tip-card">
+                <div class="tip-header">
+                  <span class="tip-title">💡 Совет дня</span>
+                  <button class="tip-refresh-btn" @click="nextTip">🎲 Другой совет</button>
+                </div>
+                <p class="tip-text">{{ gardenTips[currentTipIndex] }}</p>
+              </div>
+            </div>
+
+            <!-- 5. Backup & Tools -->
+            <div class="settings-section">
+              <div class="settings-card">
+                <div class="settings-item-header">
+                  <span>💾 Резервная копия и данные</span>
+                </div>
+                <div class="backup-actions">
+                  <button class="btn-backup export" @click="exportBackup">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span>Скачать копию (JSON)</span>
+                  </button>
+                  <button class="btn-backup import" @click="triggerImport">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <span>Восстановить из файла</span>
+                  </button>
+                  <input type="file" ref="restoreFileInput" accept=".json" @change="handleImportBackup" hidden>
+                </div>
+
+                <div class="settings-divider"></div>
+
+                <div class="settings-item no-border">
+                  <span>🔔 Уведомления</span>
+                  <span class="settings-value">{{ notificationStatus }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6. About & Logout -->
+            <div class="settings-section">
+              <div class="about-card">
+                <div class="about-logo">🌱</div>
+                <div class="about-info">
+                  <div class="about-title">Дачный и Домашний Планер</div>
+                  <div class="about-ver">Версия 2.5 • Offline Ready PWA ⚡</div>
+                </div>
+              </div>
+
+              <button v-if="isRealAccount" class="auth-btn logout-btn" @click="handleLogout">
+                Выйти из аккаунта
+              </button>
             </div>
           </div>
         </template>
@@ -1235,5 +1421,191 @@ const headerTitle = () => {
   background: none; border: none; color: var(--primary);
   font-size: 14px; cursor: pointer; margin-top: 16px;
   font-family: var(--font-family); text-decoration: underline;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: var(--font-family);
+}
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-family: var(--font-family);
+}
+
+/* Settings Card & Headers */
+.settings-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--surface-border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-item-header {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-family: var(--font-family);
+}
+.settings-divider {
+  height: 1px;
+  background: var(--surface-border);
+  margin: 4px 0;
+}
+.settings-item.no-border {
+  border: none;
+  padding: 8px 0;
+  background: transparent;
+}
+
+/* Theme Bubbles */
+.theme-bubbles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.theme-bubble-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-secondary);
+  border: 2px solid transparent;
+  border-radius: var(--radius-full);
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-family: var(--font-family);
+}
+.theme-bubble-btn.active {
+  border-color: var(--bubble-color);
+  background: var(--primary-light);
+}
+.bubble-preview {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bubble-color);
+  flex-shrink: 0;
+}
+.bubble-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* Tip Card */
+.tip-card {
+  background: linear-gradient(135deg, var(--primary-light), var(--surface));
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.tip-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: var(--font-family);
+}
+.tip-refresh-btn {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  font-family: var(--font-family);
+  transition: var(--transition-fast);
+}
+.tip-refresh-btn:active {
+  transform: scale(0.95);
+}
+.tip-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-main);
+  font-family: var(--font-family);
+  margin: 0;
+}
+
+/* Backup Actions */
+.backup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.btn-backup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-secondary);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.btn-backup:active {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* About Card */
+.about-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+}
+.about-logo {
+  font-size: 32px;
+}
+.about-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-family: var(--font-family);
+}
+.about-ver {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-family);
 }
 </style>
