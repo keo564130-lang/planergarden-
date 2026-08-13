@@ -234,6 +234,10 @@ export default async function handler(req, res) {
           description = instaMatch[1].trim()
         }
       }
+      
+      if ((!title || title.toLowerCase() === 'instagram') && !description) {
+        return res.status(422).json({ error: 'Instagram content is blocked by login wall' });
+      }
     }
 
     // max.ru specific extraction

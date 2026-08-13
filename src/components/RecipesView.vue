@@ -398,6 +398,9 @@ const parseLink = async () => {
       }
       data = jsonData
     } catch (e) {
+      if (e.message && e.message.includes('Instagram')) {
+        throw new Error('К сожалению, Instagram полностью блокирует автоматическое скачивание. Пожалуйста, вставьте текст и фото вручную.');
+      }
       console.log('Primary parsing failed, trying fallback...', e)
       // Fallback to microlink if our backend is blocked/timed out
       const mUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&prerender=true`
