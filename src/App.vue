@@ -8,6 +8,8 @@ import TimePickerModal from './components/TimePickerModal.vue'
 import TableSelectorModal from './components/TableSelectorModal.vue'
 import AiChat from './components/AiChat.vue'
 import RecipesView from './components/RecipesView.vue'
+import AppSettingsModal from './components/AppSettingsModal.vue'
+import { playSuccessChime, triggerHaptic } from './utils/audio.js'
 
 // Base configurations
 const year = ref(2026)
@@ -18,8 +20,25 @@ const todayObj = new Date()
 const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`
 const selectedDate = ref(todayStr)
 
+// App Pro Settings state
+const showAppSettings = ref(false)
+const defaultSettings = {
+  tabOrder: ['calendar', 'recipes', 'ai', 'settings'],
+  startTab: 'calendar',
+  showTabLabels: true,
+  hapticEnabled: true,
+  soundEnabled: true,
+  autoRolloverTasks: false,
+  photoQuality: 'medium',
+  autoPlayVideo: true,
+  keepScreenOn: false,
+  aiTone: 'friendly'
+}
+const savedSettings = localStorage.getItem('garden_planner_app_settings')
+const appSettings = ref(savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings)
+
 // Bottom navigation
-const activeTab = ref('calendar') // 'calendar', 'recipes', 'ai', 'settings'
+const activeTab = ref(appSettings.value.startTab || 'calendar') // 'calendar', 'recipes', 'ai', 'settings'
 
 // Day sub-navigation (Tasks vs Tables)
 const activeDayTab = ref('tasks')
@@ -267,8 +286,21 @@ onMounted(async () => {
   const savedRecipes = localStorage.getItem('garden_planner_recipes')
   if (savedRecipes) { try { recipes.value = JSON.parse(savedRecipes) } catch (e) {} }
   const savedNotes = localStorage.getItem('garden_planner_recipe_notes')
-  if (savedNotes) { try { recipeNotes.value = JSON.parse(savedNotes) } catch (e) {} }
   if (savedAllMsgs) { try { allAiMessages.value = JSON.parse(savedAllMsgs) } catch (e) {} }
+
+  // Auto-rollover overdue incomplete tasks if enabled
+  if (appSettings.value && appSettings.value.autoRolloverTasks && tasks.value.length > 0) {
+    const now = new Date()
+    const todayFmt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    let changed = false
+    tasks.value.forEach(t => {
+      if (!t.completed && t.date && t.date < todayFmt) {
+        t.date = todayFmt
+        changed = true
+      }
+    })
+    if (changed) safeLocalSet('garden_planner_tasks', tasks.value)
+  }
 
   // 3. iOS/Android keyboard fix — global level
   const initialHeight = window.innerHeight
@@ -373,6 +405,7 @@ watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) 
 watch(recipeCategories, (v) => { safeLocalSet('garden_planner_recipe_categories', v) }, { deep: true })
 watch(recipes, (v) => { safeLocalSet('garden_planner_recipes', v) }, { deep: true })
 watch(recipeNotes, (v) => { safeLocalSet('garden_planner_recipe_notes', v) }, { deep: true })
+watch(appSettings, (v) => { safeLocalSet('garden_planner_app_settings', v) }, { deep: true })
 
 const updateMetaThemeColor = (isDark) => {
   const themeColor = isDark ? '#101411' : '#f3f6f4'
@@ -552,9 +585,20 @@ const handleToggleTask = async (taskId) => {
   const task = tasks.value.find(t => t.id === taskId)
   if (!task) return
   task.completed = !task.completed
+  if (task.completed) {
+    if (appSettings.value && appSettings.value.soundEnabled) playSuccessChime()
+    if (appSettings.value && appSettings.value.hapticEnabled) triggerHaptic('success')
+  } else {
+    if (appSettings.value && appSettings.value.hapticEnabled) triggerHaptic('tap')
+  }
   if (supabase && currentUser.value) {
     try { const isTemp = typeof taskId === 'number' && taskId > 1000000000000; if (!isTemp) { const { error } = await supabase.from('tasks').update({ completed: task.completed }).eq('id', taskId); if (error) throw error } } catch (err) { console.error('Failed to toggle task:', err.message) }
   }
+}
+
+const switchTab = (tabKey) => {
+  activeTab.value = tabKey
+  if (appSettings.value && appSettings.value.hapticEnabled) triggerHaptic('tap')
 }
 
 const handleDeleteTask = async (taskId) => {
@@ -712,7 +756,7 @@ const handleSendMessage = async (payload) => {
   isAiTyping.value = true
   try {
     const history = aiMessages.value.filter(m => m.id !== userMsg.id).map(m => ({ role: m.role, content: m.content }))
-    const body = { message: messageText || 'Что на этом фото?', history }
+    const body = { message: messageText || 'Что на этом фото?', history, tone: appSettings.value ? appSettings.value.aiTone : 'friendly' }
     if (messageImage) body.image = messageImage
     
     const res = await fetch('/api/ask-ai', {
@@ -1264,7 +1308,21 @@ const headerTitle = () => {
               </div>
             </div>
 
-            <!-- 6. About & Author Credit -->
+            <!-- 6. App Pro Settings Launch Card -->
+            <div class="settings-section">
+              <div class="settings-card launch-settings-card" @click="showAppSettings = true">
+                <div class="launch-card-content">
+                  <div class="launch-icon-badge">⚙️</div>
+                  <div class="launch-info">
+                    <span class="launch-title">Параметры и Лаборатория</span>
+                    <span class="launch-desc">Докбар, звуки Duolingo, характер ИИ</span>
+                  </div>
+                </div>
+                <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </div>
+            </div>
+
+            <!-- 7. About & Author Credit -->
             <div class="settings-section footer-section">
               <div class="about-card">
                 <div class="about-logo">🌱</div>
@@ -1304,35 +1362,52 @@ const headerTitle = () => {
         />
       </transition>
 
+      <!-- App Settings Modal -->
+      <transition name="fade">
+        <AppSettingsModal 
+          v-if="showAppSettings" 
+          v-model="appSettings" 
+          @close="showAppSettings = false" 
+        />
+      </transition>
+
       <!-- M3 Bottom Navigation Bar -->
       <nav class="bottom-nav" v-show="!isKeyboardOpen">
-        <button class="bottom-nav-item" :class="{ active: activeTab === 'calendar' }" @click="activeTab = 'calendar'">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          <span class="nav-label">Планер</span>
-        </button>
-        <button class="bottom-nav-item" :class="{ active: activeTab === 'recipes' }" @click="activeTab = 'recipes'">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 19h16M4 15h16M8 11V5a2 2 0 1 1 4 0v6M14 11V7a2 2 0 1 1 4 0v4"></path>
-          </svg>
-          <span class="nav-label">Рецепты</span>
-        </button>
-        <button class="bottom-nav-item" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
-          <span class="nav-label">ИИ</span>
-        </button>
-        <button class="bottom-nav-item" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-          <span class="nav-label">Ещё</span>
+        <button 
+          v-for="tabKey in (appSettings?.tabOrder || ['calendar', 'recipes', 'ai', 'settings'])" 
+          :key="tabKey" 
+          class="bottom-nav-item" 
+          :class="{ active: activeTab === tabKey }" 
+          @click="switchTab(tabKey)"
+        >
+          <template v-if="tabKey === 'calendar'">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span v-if="appSettings?.showTabLabels !== false" class="nav-label">Планер</span>
+          </template>
+          <template v-else-if="tabKey === 'recipes'">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19h16M4 15h16M8 11V5a2 2 0 1 1 4 0v6M14 11V7a2 2 0 1 1 4 0v4"></path>
+            </svg>
+            <span v-if="appSettings?.showTabLabels !== false" class="nav-label">Рецепты</span>
+          </template>
+          <template v-else-if="tabKey === 'ai'">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span v-if="appSettings?.showTabLabels !== false" class="nav-label">ИИ</span>
+          </template>
+          <template v-else-if="tabKey === 'settings'">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span v-if="appSettings?.showTabLabels !== false" class="nav-label">Ещё</span>
+          </template>
         </button>
       </nav>
 
@@ -1728,5 +1803,55 @@ const headerTitle = () => {
   font-family: var(--font-family);
   letter-spacing: 0.2px;
   opacity: 0.85;
+}
+
+/* App Settings Launch Card */
+.launch-settings-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 14px 16px;
+  transition: var(--transition-fast);
+}
+.launch-settings-card:active {
+  transform: scale(0.98);
+  background: var(--surface-secondary);
+}
+.launch-card-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.launch-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.launch-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.launch-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-family: var(--font-family);
+}
+.launch-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+}
+.chevron-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
 }
 </style>
