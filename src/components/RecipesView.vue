@@ -321,11 +321,19 @@ const parseLink = async () => {
       note: ''
     }
     
-    // Try to load image via proxy and compress
-    if (data.image) {
+    // Try to load image: first directly (VK allows CORS), then via proxy
+    const targetUrl = data.originalImage || data.image
+    if (targetUrl) {
       try {
-        const imgRes = await fetch(data.image)
-        if (imgRes.ok) {
+        let imgRes = null
+        try {
+          imgRes = await fetch(data.originalImage)
+        } catch (e) {
+          // Direct fetch failed (CORS), try proxy
+          if (data.image) imgRes = await fetch(data.image)
+        }
+        
+        if (imgRes && imgRes.ok) {
           const blob = await imgRes.blob()
           const dataUrl = await new Promise((resolve) => {
             const blobUrl = URL.createObjectURL(blob)
@@ -346,7 +354,7 @@ const parseLink = async () => {
           if (dataUrl) editingRecipe.value.photos.push(dataUrl)
         }
       } catch (e) {
-        // Image failed, continue without it
+        // Image failed entirely, continue without it
       }
     }
     
