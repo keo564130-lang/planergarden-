@@ -321,17 +321,19 @@ const parseLink = async () => {
       note: ''
     }
     
-    // Try to load image
+    // Try to load image via proxy
     if (data.image) {
       try {
         const imgRes = await fetch(data.image)
-        const blob = await imgRes.blob()
-        const dataUrl = await new Promise((resolve) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result)
-          reader.readAsDataURL(blob)
-        })
-        editingRecipe.value.photos.push(dataUrl)
+        if (imgRes.ok) {
+          const blob = await imgRes.blob()
+          const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result)
+            reader.readAsDataURL(blob)
+          })
+          editingRecipe.value.photos.push(dataUrl)
+        }
       } catch (e) {
         // Image failed, continue without it
       }
