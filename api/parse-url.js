@@ -40,6 +40,11 @@ export default async function handler(req, res) {
     url = url.replace('vk.com/clip', 'vk.com/video')
   }
 
+  // For Telegram, we need to use the embed widget to get metadata
+  if (url.includes('t.me/') && !url.includes('?embed=1') && !url.includes('&embed=1')) {
+    url = url + (url.includes('?') ? '&embed=1' : '?embed=1')
+  }
+
   try {
     const response = await fetch(url, {
       headers: {
@@ -147,6 +152,26 @@ export default async function handler(req, res) {
       .replace(/\n{3,}/g, '\n\n')
       .trim()
     
+    // Telegram specific extraction
+    if (url.includes('t.me/')) {
+      const tgTextMatch = html.match(/<div[^>]*class=["'][^"']*tgme_widget_message_text[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)
+      if (tgTextMatch && tgTextMatch[1]) {
+        let tgText = tgTextMatch[1]
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
+        description = decodeEntities(tgText).trim()
+      }
+      if (!title || title.toLowerCase() === 'telegram') {
+        const tgAuthorMatch = html.match(/<span[^>]*class=["'][^"']*tgme_widget_message_owner_name[^"']*["'][^>]*>([\s\S]*?)<\/span>/i) ||
+                              html.match(/<a[^>]*class=["'][^"']*tgme_widget_message_owner_name[^"']*["'][^>]*>([\s\S]*?)<\/a>/i)
+        if (tgAuthorMatch && tgAuthorMatch[1]) {
+          title = decodeEntities(tgAuthorMatch[1].replace(/<[^>]+>/g, '').trim())
+        } else {
+          title = 'Telegram'
+        }
+      }
+    }
+
     let image = getOg('image') || ''
     
     // Fallback for VK images if og:image is missing or broken
