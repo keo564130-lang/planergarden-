@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import Sortable from 'sortablejs'
 
 const props = defineProps({
   categories: { type: Array, default: () => [] },
@@ -14,6 +15,7 @@ const emit = defineEmits([
   'add-recipe',
   'update-recipe',
   'delete-recipe',
+  'update-recipe-category',
   'add-note',
   'delete-note',
   'clear-share-data'
@@ -21,6 +23,15 @@ const emit = defineEmits([
 
 const currentView = ref('list')
 const selectedRecipe = ref(null)
+
+const searchQuery = ref('')
+
+const palette = [
+  'default', '#FFCDD2', '#F8BBD0', '#E1BEE7', 
+  '#D1C4E9', '#C5CAE9', '#BBDEFB', '#B3E5FC',
+  '#B2EBF2', '#B2DFDB', '#C8E6C9', '#DCEDC8',
+  '#F0F4C3', '#FFF9C4', '#FFECB3', '#FFE0B2', '#FFCCBC'
+]
 
 // --- View 1: Category List ---
 const expandedCategories = ref(new Set())
@@ -35,16 +46,18 @@ const toggleCategory = (id) => {
 const showAddCategoryModal = ref(false)
 const newCategoryName = ref('')
 const newCategoryEmoji = ref('📁')
+const newCategoryColor = ref('default')
 const emojiList = ['🍆','🍅','🥒','🫙','🥕','🌽','🍎','🍓','🫐','🍒','🥔','🧅','🍋','🌶️','🥬','🍇','📁']
 
 const openAddCategory = () => {
   newCategoryName.value = ''
   newCategoryEmoji.value = '📁'
+  newCategoryColor.value = 'default'
   showAddCategoryModal.value = true
 }
 const addCategory = () => {
   if (newCategoryName.value.trim()) {
-    emit('add-category', newCategoryName.value.trim(), newCategoryEmoji.value)
+    emit('add-category', newCategoryName.value.trim(), newCategoryEmoji.value, newCategoryColor.value)
     showAddCategoryModal.value = false
   }
 }
@@ -55,7 +68,39 @@ const deleteCategory = (id, event) => {
   }
 }
 
-const getRecipesForCategory = (catId) => props.recipes.filter(r => r.category_id === catId)
+const getRecipesForCategory = (catId) => {
+  return props.recipes.filter(r => {
+    if (r.category_id !== catId) return false
+    if (searchQuery.value) {
+      const q = searchQuery.value.toLowerCase()
+      const matchName = r.name.toLowerCase().includes(q)
+      const matchTag = (r.tags || []).some(t => t.toLowerCase().includes(q))
+      if (!matchName && !matchTag) return false
+    }
+    return true
+  })
+}
+
+const sortableInstances = {}
+const setSortableRef = (el, catId) => {
+  if (!el) return
+  if (!sortableInstances[catId]) {
+    sortableInstances[catId] = Sortable.create(el, {
+      group: 'recipes',
+      animation: 150,
+      delay: 200, // For mobile long-press
+      delayOnTouchOnly: true,
+      onEnd: (evt) => {
+        const itemEl = evt.item;
+        const recipeId = itemEl.dataset.id;
+        const toCatId = evt.to.dataset.catId;
+        if (recipeId && toCatId && evt.from !== evt.to) {
+          emit('update-recipe-category', recipeId, toCatId)
+        }
+      }
+    })
+  }
+}
 
 const openRecipe = (recipe) => {
   selectedRecipe.value = recipe
@@ -133,8 +178,22 @@ const editingRecipe = ref({
   name: '',
   content: '',
   photos: [],
-  note: ''
+  note: '',
+  tags: [],
+  color: 'default'
 })
+
+const newRecipeTag = ref('')
+const addRecipeTag = () => {
+  const tag = newRecipeTag.value.trim().toLowerCase()
+  if (tag && !editingRecipe.value.tags.includes(tag)) {
+    editingRecipe.value.tags.push(tag)
+  }
+  newRecipeTag.value = ''
+}
+const removeRecipeTag = (tag) => {
+  editingRecipe.value.tags = editingRecipe.value.tags.filter(t => t !== tag)
+}
 
 const openAddRecipe = (categoryId = null) => {
   isEditing.value = false
@@ -144,7 +203,9 @@ const openAddRecipe = (categoryId = null) => {
     name: '',
     content: '',
     photos: [],
-    note: ''
+    note: '',
+    tags: [],
+    color: 'default'
   }
   showRecipeModal.value = true
 }
@@ -158,7 +219,9 @@ const openEditRecipe = () => {
     name: selectedRecipe.value.name,
     content: selectedRecipe.value.content,
     photos: [...(selectedRecipe.value.photos || [])],
-    note: '' 
+    note: '',
+    tags: [...(selectedRecipe.value.tags || [])],
+    color: selectedRecipe.value.color || 'default'
   }
   showRecipeModal.value = true
 }
@@ -173,7 +236,9 @@ const saveRecipe = () => {
       category_id: editingRecipe.value.category_id,
       name: editingRecipe.value.name.trim(),
       content: editingRecipe.value.content.trim(),
-      photos: editingRecipe.value.photos
+      photos: editingRecipe.value.photos,
+      tags: editingRecipe.value.tags,
+      color: editingRecipe.value.color
     })
     selectedRecipe.value = { ...selectedRecipe.value, ...editingRecipe.value }
   } else {
@@ -182,7 +247,9 @@ const saveRecipe = () => {
       name: editingRecipe.value.name.trim(),
       content: editingRecipe.value.content.trim(),
       photos: editingRecipe.value.photos,
-      note: editingRecipe.value.note.trim()
+      note: editingRecipe.value.note.trim(),
+      tags: editingRecipe.value.tags,
+      color: editingRecipe.value.color
     })
   }
   showRecipeModal.value = false
@@ -413,13 +480,23 @@ const parseLink = async () => {
       
       <!-- VIEW 1: CATEGORY LIST -->
       <div v-if="currentView === 'list'" class="view list-view" key="list">
+        
+        <!-- Search Bar -->
+        <div class="search-bar-container" v-if="categories.length > 0">
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" v-model="searchQuery" placeholder="Поиск по названию или тегам..." />
+            <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''">✕</button>
+          </div>
+        </div>
+
         <div v-if="categories.length === 0" class="empty-state">
           <div class="empty-text">🍳<br>Добавьте первую<br>категорию рецептов</div>
           <button class="btn-primary" @click="openAddCategory">+ Добавить категорию</button>
         </div>
         
         <div v-else class="categories-container">
-          <div v-for="cat in categories" :key="cat.id" class="category-card m3-card" :class="{ 'expanded': expandedCategories.has(cat.id) }">
+          <div v-for="cat in categories" :key="cat.id" class="category-card m3-card" :class="{ 'expanded': expandedCategories.has(cat.id) }" :style="cat.color !== 'default' ? `--cat-color: ${cat.color}` : ''">
             <div class="category-header" @click="toggleCategory(cat.id)">
               <div class="cat-title">
                 <span class="emoji">{{ cat.emoji }}</span>
@@ -434,10 +511,13 @@ const parseLink = async () => {
             </div>
             
             <div v-show="expandedCategories.has(cat.id)" class="category-content">
-              <div class="recipe-list">
-                <div v-for="recipe in getRecipesForCategory(cat.id)" :key="recipe.id" class="recipe-item" @click="openRecipe(recipe)">
+              <div class="recipe-list" :ref="el => setSortableRef(el, cat.id)" :data-cat-id="cat.id">
+                <div v-for="recipe in getRecipesForCategory(cat.id)" :key="recipe.id" class="recipe-item" :data-id="recipe.id" @click="openRecipe(recipe)" :style="recipe.color !== 'default' ? `--recipe-color: ${recipe.color}` : ''">
                   <div class="recipe-item-info">
                     <div class="recipe-item-name">{{ recipe.name }}</div>
+                    <div class="recipe-tags" v-if="recipe.tags && recipe.tags.length > 0">
+                      <span v-for="tag in recipe.tags" :key="tag" class="recipe-tag-small">#{{ tag }}</span>
+                    </div>
                     <div class="recipe-item-preview">{{ (recipe.content || '').substring(0, 50) }}...</div>
                   </div>
                   <div class="recipe-item-photo" v-if="recipe.photos && recipe.photos.length">
@@ -572,6 +652,17 @@ const parseLink = async () => {
               </div>
             </div>
           </div>
+          <div class="input-group">
+            <label>Цвет</label>
+            <div class="color-grid">
+              <div v-for="color in palette" :key="color" class="color-option"
+                   :class="{ active: newCategoryColor === color }"
+                   :style="{ background: color === 'default' ? 'var(--surface)' : color }"
+                   @click="newCategoryColor = color">
+                <span v-if="color === 'default'" class="default-color-icon">✕</span>
+              </div>
+            </div>
+          </div>
           <div class="modal-actions">
             <button class="btn-text" @click="showAddCategoryModal = false">Отмена</button>
             <button class="btn-primary" @click="addCategory">💾 Сохранить</button>
@@ -610,6 +701,20 @@ const parseLink = async () => {
                 <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.emoji }} {{ cat.name }}</option>
               </select>
             </div>
+            
+            <div class="island-divider"></div>
+            
+            <div class="form-group">
+              <label>Цвет карточки</label>
+              <div class="color-grid">
+                <div v-for="color in palette" :key="color" class="color-option"
+                     :class="{ active: editingRecipe.color === color }"
+                     :style="{ background: color === 'default' ? 'var(--surface)' : color }"
+                     @click="editingRecipe.color = color">
+                  <span v-if="color === 'default'" class="default-color-icon">✕</span>
+                </div>
+              </div>
+            </div>
           </div>
           
           <div class="form-island">
@@ -623,6 +728,23 @@ const parseLink = async () => {
             <div class="form-group">
               <label>Описание / Рецепт</label>
               <textarea v-model="editingRecipe.content" @input="adjustTextareaHeight" @focus="scrollToField($event)" placeholder="Ингредиенты, шаги..."></textarea>
+            </div>
+          </div>
+          
+          <div class="form-island">
+            <div class="form-group">
+              <label>Теги</label>
+              <div class="tags-input-container">
+                <div class="tags-list" v-if="editingRecipe.tags.length > 0">
+                  <span v-for="tag in editingRecipe.tags" :key="tag" class="tag-badge">
+                    #{{ tag }} <button class="tag-remove" @click="removeRecipeTag(tag)">✕</button>
+                  </span>
+                </div>
+                <div class="tag-add-row">
+                  <input type="text" v-model="newRecipeTag" placeholder="Добавить тег (без #)" @keyup.enter="addRecipeTag" @focus="scrollToField($event)">
+                  <button class="btn-text-sm" @click="addRecipeTag">Добавить</button>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -763,10 +885,56 @@ button {
   margin-bottom: 24px;
   color: var(--text-muted);
 }
+.search-bar-container {
+  margin-bottom: 16px;
+}
+.search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+}
+.search-input-wrap input {
+  width: 100%;
+  padding: 12px 36px 12px 36px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  font-size: 15px;
+  color: var(--text-main);
+  outline: none;
+  font-family: var(--font-family);
+}
+.search-input-wrap input:focus {
+  border-color: var(--primary);
+}
+.clear-search-btn {
+  position: absolute;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-border);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
+}
+
 .categories-container {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.category-card {
+  border-left: 6px solid var(--cat-color, transparent);
 }
 .m3-card {
   background: var(--surface);
@@ -809,6 +977,7 @@ button {
   flex-direction: column;
   gap: 8px;
   margin-top: 12px;
+  min-height: 20px; /* For sortable drop target */
 }
 .recipe-item {
   display: flex;
@@ -820,10 +989,19 @@ button {
   cursor: pointer;
   align-items: center;
   transition: background var(--transition-fast);
+  border-left: 4px solid var(--recipe-color, transparent);
 }
 .recipe-item:active { background: var(--surface-secondary); }
-.recipe-item-info { flex: 1; overflow: hidden; }
-.recipe-item-name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+.recipe-item-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
+.recipe-item-name { font-weight: 600; font-size: 15px; margin-bottom: 0; }
+.recipe-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.recipe-tag-small {
+  font-size: 11px;
+  color: var(--primary);
+  background: var(--primary-container);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
 .recipe-item-preview { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .recipe-item-photo {
   width: 48px;
@@ -1169,12 +1347,12 @@ button {
   box-sizing: border-box;
 }
 .input-group input:focus { border-color: var(--primary); }
-.emoji-grid {
+.emoji-grid, .color-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.emoji-option {
+.emoji-option, .color-option {
   width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
   font-size: 24px;
@@ -1183,11 +1361,60 @@ button {
   cursor: pointer;
   transition: transform 0.2s, background 0.2s;
 }
-.emoji-option.active {
+.emoji-option.active, .color-option.active {
   background: var(--primary-container);
   border: 2px solid var(--primary);
   transform: scale(1.1);
 }
+.default-color-icon {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+.tags-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tag-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--primary-container);
+  color: var(--primary);
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-weight: 500;
+}
+.tag-remove {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.1);
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  border: none;
+  cursor: pointer;
+}
+.tag-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.tag-add-row input {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0 !important;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

@@ -718,13 +718,13 @@ const displayUsername = computed(() => {
 })
 
 // Recipe handlers
-const handleAddCategory = async (name, emoji) => {
+const handleAddCategory = async (name, emoji, color = 'default') => {
   const tempId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()
-  const localCat = { id: tempId, name, emoji, position: recipeCategories.value.length, user_id: currentUser.value?.id, created_at: new Date().toISOString() }
+  const localCat = { id: tempId, name, emoji, color, position: recipeCategories.value.length, user_id: currentUser.value?.id, created_at: new Date().toISOString() }
   recipeCategories.value.push(localCat)
   if (supabase && currentUser.value) {
     try {
-      const { data, error } = await supabase.from('recipe_categories').insert({ name, emoji, position: recipeCategories.value.length - 1, user_id: currentUser.value.id }).select()
+      const { data, error } = await supabase.from('recipe_categories').insert({ name, emoji, color, position: recipeCategories.value.length - 1, user_id: currentUser.value.id }).select()
       if (error) throw error
       if (data?.[0]) { const idx = recipeCategories.value.findIndex(c => c.id === tempId); if (idx !== -1) recipeCategories.value[idx] = data[0] }
     } catch (err) { console.error('Failed to add category:', err.message) }
@@ -741,11 +741,32 @@ const handleDeleteCategory = async (categoryId) => {
 
 const handleAddRecipe = async (recipe) => {
   const tempId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()
-  const localRecipe = { id: tempId, category_id: recipe.category_id, name: recipe.name, content: recipe.content, photos: recipe.photos || [], position: recipes.value.length, user_id: currentUser.value?.id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+  const localRecipe = { 
+    id: tempId, 
+    category_id: recipe.category_id, 
+    name: recipe.name, 
+    content: recipe.content, 
+    photos: recipe.photos || [], 
+    color: recipe.color || 'default',
+    tags: recipe.tags || [],
+    position: recipes.value.length, 
+    user_id: currentUser.value?.id, 
+    created_at: new Date().toISOString(), 
+    updated_at: new Date().toISOString() 
+  }
   recipes.value.push(localRecipe)
   if (supabase && currentUser.value) {
     try {
-      const { data, error } = await supabase.from('recipes').insert({ category_id: recipe.category_id, name: recipe.name, content: recipe.content, photos: recipe.photos || [], position: recipes.value.length - 1, user_id: currentUser.value.id }).select()
+      const { data, error } = await supabase.from('recipes').insert({ 
+        category_id: recipe.category_id, 
+        name: recipe.name, 
+        content: recipe.content, 
+        photos: recipe.photos || [], 
+        color: recipe.color || 'default',
+        tags: recipe.tags || [],
+        position: recipes.value.length - 1, 
+        user_id: currentUser.value.id 
+      }).select()
       if (error) throw error
       if (data?.[0]) { const idx = recipes.value.findIndex(r => r.id === tempId); if (idx !== -1) recipes.value[idx] = data[0] }
     } catch (err) { console.error('Failed to add recipe:', err.message) }
@@ -760,14 +781,48 @@ const handleAddRecipe = async (recipe) => {
 const handleUpdateRecipe = async (recipe) => {
   const idx = recipes.value.findIndex(r => r.id === recipe.id)
   if (idx !== -1) {
-    recipes.value[idx] = { ...recipes.value[idx], name: recipe.name, content: recipe.content, photos: recipe.photos, updated_at: new Date().toISOString() }
+    recipes.value[idx] = { 
+      ...recipes.value[idx], 
+      name: recipe.name, 
+      content: recipe.content, 
+      photos: recipe.photos, 
+      color: recipe.color || recipes.value[idx].color,
+      tags: recipe.tags || recipes.value[idx].tags,
+      updated_at: new Date().toISOString() 
+    }
   }
   if (supabase && currentUser.value) {
-    try { await supabase.from('recipes').update({ name: recipe.name, content: recipe.content, photos: recipe.photos, updated_at: new Date().toISOString() }).eq('id', recipe.id) } catch (err) { console.error('Failed to update recipe:', err.message) }
+    try { 
+      await supabase.from('recipes').update({ 
+        name: recipe.name, 
+        content: recipe.content, 
+        photos: recipe.photos, 
+        color: recipe.color,
+        tags: recipe.tags,
+        updated_at: new Date().toISOString() 
+      }).eq('id', recipe.id) 
+    } catch (err) { console.error('Failed to update recipe:', err.message) }
+  }
+}
+
+const handleUpdateRecipeCategory = async (recipeId, newCategoryId) => {
+  const idx = recipes.value.findIndex(r => r.id === recipeId)
+  if (idx !== -1) {
+    recipes.value[idx].category_id = newCategoryId
+    recipes.value[idx].updated_at = new Date().toISOString()
+  }
+  if (supabase && currentUser.value) {
+    try {
+      await supabase.from('recipes').update({
+        category_id: newCategoryId,
+        updated_at: new Date().toISOString()
+      }).eq('id', recipeId)
+    } catch (err) { console.error('Failed to update recipe category:', err.message) }
   }
 }
 
 const handleDeleteRecipe = async (recipeId) => {
+
   recipes.value = recipes.value.filter(r => r.id !== recipeId)
   recipeNotes.value = recipeNotes.value.filter(n => n.recipe_id !== recipeId)
   if (supabase && currentUser.value) {
@@ -932,6 +987,7 @@ const headerTitle = () => {
             @add-recipe="handleAddRecipe"
             @update-recipe="handleUpdateRecipe"
             @delete-recipe="handleDeleteRecipe"
+            @update-recipe-category="handleUpdateRecipeCategory"
             @add-note="handleAddNote"
             @delete-note="handleDeleteNote"
             @clear-share-data="handleClearShareData"
