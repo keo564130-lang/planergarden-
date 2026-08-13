@@ -221,7 +221,7 @@ body {
   background: var(--surface);
   flex-shrink: 0;
   z-index: 100;
-  margin: 0 16px 1px 16px;
+  margin: 0 16px 0 16px;
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   border: 1px solid var(--surface-border);
