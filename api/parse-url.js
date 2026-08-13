@@ -211,9 +211,37 @@ export default async function handler(req, res) {
         
         if (rapidRes.ok) {
           const rapidData = await rapidRes.json();
-          // DUMP JSON DIRECTLY TO FRONTEND FOR DEBUGGING
-          description = JSON.stringify(rapidData, null, 2);
-          title = "DEBUG JSON";
+          let foundVideo = null;
+          let foundImage = null;
+          let foundText = null;
+          
+          function findData(obj) {
+             if (!obj || typeof obj !== 'object') return;
+             for (const key in obj) {
+                const val = obj[key];
+                if (typeof val === 'string') {
+                   if ((key.includes('video_url') || key.includes('videoUrl')) && !foundVideo) {
+                      if (val.startsWith('http')) foundVideo = val;
+                   }
+                   if ((key.includes('display_url') || key.includes('thumbnail_src')) && !foundImage) {
+                      if (val.startsWith('http')) foundImage = val;
+                   }
+                   if ((key === 'text' || key === 'caption') && val.length > 20) {
+                      if (!foundText || val.length > foundText.length) {
+                         foundText = val;
+                      }
+                   }
+                } else if (typeof val === 'object') {
+                   findData(val);
+                }
+             }
+          }
+          findData(rapidData);
+          
+          if (foundVideo) video = foundVideo;
+          if (foundImage) image = foundImage;
+          if (foundText) description = foundText;
+          title = "Instagram Post";
         }
       } catch(e) {
         console.error("RapidAPI instagram360 error:", e);
