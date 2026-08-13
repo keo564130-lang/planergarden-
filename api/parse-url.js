@@ -131,6 +131,7 @@ export default async function handler(req, res) {
     
     // Clean HTML from description
     description = description
+      .split('Последние записи:')[0] // Remove VK's recent posts block
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>/gi, '\n')
       .replace(/<\/div>/gi, '\n')
@@ -140,6 +141,15 @@ export default async function handler(req, res) {
       .trim()
     
     let image = getOg('image') || ''
+    
+    // Fallback for VK images if og:image is missing or broken
+    if (!image && url.includes('vk.com')) {
+      const imgMatch = html.match(/<div[^>]*class=["'][^"']*page_post_sized_thumbs[^"']*["'][^>]*>[\s\S]*?<img[^>]*src=["']([^"']+)["']/i) ||
+                       html.match(/<a[^>]*class=["'][^"']*page_post_thumb_wrap[^"']*["'][^>]*>[\s\S]*?<img[^>]*src=["']([^"']+)["']/i)
+      if (imgMatch && imgMatch[1]) {
+        image = decodeEntities(imgMatch[1])
+      }
+    }
     
     // Make image URL absolute and force HTTPS
     if (image) {
