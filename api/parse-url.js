@@ -236,7 +236,22 @@ export default async function handler(req, res) {
       }
     }
 
-    let image = getOg('image') || ''
+    // max.ru specific extraction
+    if (url.includes('max.ru/')) {
+      const maxTextMatch = html.match(/message:\s*\{.*?text:\s*"([\s\S]*?[^\\])"\s*[,}]/i)
+      if (maxTextMatch && maxTextMatch[1]) {
+        description = decodeEntities(maxTextMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\'))
+      }
+      
+      const maxImgMatch = html.match(/attachment:.*?url:\s*"([^"]+)"/i)
+      if (maxImgMatch && maxImgMatch[1]) {
+        image = maxImgMatch[1].replace(/\\u0026/g, '&')
+      }
+    }
+
+    if (!image) {
+      image = getOg('image') || ''
+    }
     
     // Fallback for VK images if og:image is missing or broken
     if (!image && url.includes('vk.com')) {
