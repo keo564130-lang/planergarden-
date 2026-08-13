@@ -330,8 +330,18 @@ const parseLink = async () => {
     
     // Fallback for generic VK titles
     let finalTitle = data.title || ''
-    const genericTitles = ['ВКонтакте', 'VK', 'Wall posts', 'Пост на стене', 'VKontakte']
-    if (genericTitles.includes(finalTitle) || !finalTitle) {
+    const lowerTitle = finalTitle.toLowerCase()
+    
+    const isGeneric = !finalTitle || 
+      lowerTitle.includes('вконтакте') || 
+      lowerTitle.includes('vk.com') || 
+      lowerTitle.includes('vkontakte') || 
+      lowerTitle.includes('wall post') || 
+      lowerTitle.includes('пост на стене') || 
+      lowerTitle.includes('запись на стене') ||
+      lowerTitle === 'vk';
+      
+    if (isGeneric) {
       if (data.description) {
         // Take the first line or sentence as title
         const firstLine = data.description.split('\n')[0].trim()
