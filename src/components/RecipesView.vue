@@ -418,11 +418,12 @@ const parseLink = async () => {
         .trim();
     }
     
-    // Fallback for generic VK titles
+    // Fallback for generic VK/Max titles
     let finalTitle = data.title || ''
     const lowerTitle = finalTitle.toLowerCase()
     
     const isGeneric = !finalTitle || 
+      url.includes('max.ru') ||
       lowerTitle.includes('вконтакте') || 
       lowerTitle.includes('vk.com') || 
       lowerTitle.includes('vkontakte') || 
