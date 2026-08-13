@@ -399,6 +399,40 @@ const parseLink = async () => {
       data = jsonData
     } catch (e) {
       if (e.message && e.message.includes('Instagram')) {
+        try {
+          const cobaltRes = await fetch('https://api.cobalt.tools/', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url })
+          });
+          if (cobaltRes.ok) {
+            const cobaltData = await cobaltRes.json();
+            if (cobaltData.url) {
+              data = {
+                title: 'Instagram Post',
+                description: 'Видео/фото из Instagram',
+                originalImage: cobaltData.url,
+                image: cobaltData.url
+              };
+              if (cobaltData.thumbnail) {
+                data.originalImage = cobaltData.thumbnail;
+                data.image = cobaltData.thumbnail;
+              }
+              linkData.value = data;
+              title.value = data.title;
+              description.value = data.description;
+              if (data.image) {
+                linkImagePreview.value = data.image;
+              }
+              linkModal.value = true;
+              linkUrl.value = url;
+              linkLoading.value = false;
+              return; // skip the rest
+            }
+          }
+        } catch (cobaltErr) {
+          console.log('Cobalt fallback failed', cobaltErr);
+        }
         throw new Error('К сожалению, Instagram полностью блокирует автоматическое скачивание. Пожалуйста, вставьте текст и фото вручную.');
       }
       console.log('Primary parsing failed, trying fallback...', e)
