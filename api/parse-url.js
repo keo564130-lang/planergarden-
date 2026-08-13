@@ -45,6 +45,68 @@ export default async function handler(req, res) {
     url = url + (url.includes('?') ? '&embed=1' : '?embed=1')
   }
 
+  // Instagram specific extraction via RapidAPI instagram360
+  if (url.includes('instagram.com') || url.includes('instagr.am')) {
+    try {
+      const shortcodeMatch = url.match(/(?:reel|reels|p)\/([a-zA-Z0-9_-]+)/i);
+      const shortcode = shortcodeMatch ? shortcodeMatch[1] : encodeURIComponent(url);
+
+      const rapidRes = await fetch(`https://instagram360.p.rapidapi.com/postdetail/?code_or_url=${shortcode}`, {
+        headers: {
+          'x-rapidapi-key': 'f09a814d17msha5fcec7fa4a0149p1de51djsnfa6510e57f67',
+          'x-rapidapi-host': 'instagram360.p.rapidapi.com'
+        }
+      });
+
+      if (!rapidRes.ok) {
+        return res.status(422).json({ error: `Instagram API error: ${rapidRes.status}` });
+      }
+
+      const rapidData = await rapidRes.json();
+
+      let description = rapidData?.data?.caption?.text || '';
+      let image = rapidData?.data?.thumbnail_url || 
+                  rapidData?.data?.image_versions?.items?.[0]?.url || 
+                  rapidData?.data?.image_versions?.additional_items?.first_frame?.url || 
+                  rapidData?.data?.display_url || '';
+
+      // Fallback recursive search if direct paths missed
+      if (!description || !image) {
+        function findData(obj) {
+          if (!obj || typeof obj !== 'object') return;
+          for (const key in obj) {
+            const val = obj[key];
+            if (typeof val === 'string') {
+              if (!image && val.startsWith('http') && (val.includes('.jpg') || val.includes('.webp') || val.includes('cdninstagram'))) {
+                if (key.toLowerCase().includes('thumb') || key.toLowerCase().includes('cover') || key.toLowerCase().includes('frame') || key.toLowerCase().includes('display')) {
+                  image = val;
+                }
+              }
+              if (!description && val.length > 20 && !val.startsWith('http') && !val.includes('{')) {
+                description = val;
+              }
+            } else if (typeof val === 'object') {
+              findData(val);
+            }
+          }
+        }
+        findData(rapidData);
+      }
+
+      const proxyImage = image ? `/api/parse-url?image=${encodeURIComponent(image)}` : '';
+
+      return res.status(200).json({
+        title: '',
+        description,
+        image: proxyImage,
+        originalImage: image,
+        source: url
+      });
+    } catch (err) {
+      return res.status(500).json({ error: 'Ошибка Instagram парсера: ' + err.message });
+    }
+  }
+
   try {
     const response = await fetch(url, {
       headers: {
@@ -195,113 +257,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Instagram specific extraction
-    if (url.includes('instagram.com')) {
-      // RapidAPI instagram360 Integration
-      try {
-        const shortcodeMatch = url.match(/(?:reel|p)\/([a-zA-Z0-9_-]+)/i);
-        const shortcode = shortcodeMatch ? shortcodeMatch[1] : encodeURIComponent(url);
 
-        const rapidRes = await fetch(`https://instagram360.p.rapidapi.com/postdetail/?code_or_url=${shortcode}`, {
-          headers: {
-            'x-rapidapi-key': 'f09a814d17msha5fcec7fa4a0149p1de51djsnfa6510e57f67',
-            'x-rapidapi-host': 'instagram360.p.rapidapi.com'
-          }
-        });
-        
-        if (rapidRes.ok) {
-          const rapidData = await rapidRes.json();
-          // FIRE AND FORGET WEBHOOK DUMP
-          try {
-            await fetch('https://webhook.site/078c0687-e21a-4ed3-bf0f-b246f9802414', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(rapidData)
-            });
-          } catch(e) {}
-          let foundVideo = null;
-          let foundImage = null;
-          let foundText = null;
-          
-          function findData(obj) {
-             if (!obj || typeof obj !== 'object') return;
-             for (const key in obj) {
-                const val = obj[key];
-                if (typeof val === 'string') {
-                   // Ищем ЛЮБУЮ ссылку на mp4 или видео
-                   if ((val.includes('.mp4') || key.includes('video_url') || key.includes('videoUrl')) && !foundVideo) {
-                      if (val.startsWith('http')) foundVideo = val;
-                   }
-                   // Ищем ЛЮБУЮ картинку (jpg/png), если в ключе есть url, pic или image
-                   if (val.startsWith('http') && (val.includes('.jpg') || val.includes('.webp')) && !foundImage) {
-                      if (key.toLowerCase().includes('url') || key.toLowerCase().includes('pic') || key.toLowerCase().includes('image') || key.toLowerCase().includes('display')) {
-                         foundImage = val;
-                      }
-                   }
-                   // Ищем ЛЮБОЙ текст длиннее 30 символов, который не является ссылкой
-                   if (val.length > 30 && !val.startsWith('http') && !val.includes('{')) {
-                      if (!foundText || val.length > foundText.length) {
-                         foundText = val;
-                      }
-                   }
-                } else if (typeof val === 'object') {
-                   findData(val);
-                }
-             }
-          }
-          findData(rapidData);
-          
-          if (foundVideo) video = foundVideo;
-          if (foundImage) image = foundImage;
-          if (foundText) description = foundText;
-          if (!title) title = "Instagram Post";
-        } else {
-          title = "API ERR: " + rapidRes.status + " " + rapidRes.statusText;
-          const text = await rapidRes.text();
-          description = text.substring(0, 100);
-        }
-      } catch(e) {
-        console.error("RapidAPI instagram360 error:", e);
-      }
-
-      // Clean up Instagram title (which sometimes contains the full post)
-      if (title) {
-        const titleMatch = title.match(/^(.*?)\s*(?:on Instagram|в Instagram|от .*? г\.)/i)
-        if (titleMatch && titleMatch[1]) {
-          title = titleMatch[1].trim()
-        } else if (title.length > 50) {
-          title = 'Instagram Post'
-        }
-      }
-
-      // Try to find the full caption in ld+json
-      let fullCaption = null
-      const jsonMatches = html.match(/<script type=["']application\/ld\+json["']>([\s\S]*?)<\/script>/gi)
-      if (jsonMatches) {
-        for (const m of jsonMatches) {
-          try {
-            const inner = m.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '')
-            const parsed = JSON.parse(inner)
-            if (parsed.articleBody) {
-              fullCaption = parsed.articleBody
-              break
-            }
-          } catch (e) {}
-        }
-      }
-      
-      if (fullCaption) {
-        description = decodeEntities(fullCaption).trim()
-      } else if (description) {
-        // Strip Instagram metadata prefix like "123 likes, 4 comments - username on August 13, 2026: "
-        // or Russian "123 отметок «Нравится», 4 комментариев — username в Instagram: "
-        const instaRegex = /^[\s\S]*?(?:likes|Нравится)[\s\S]*?(?:comments|комментари)[\s\S]*?(?:-|—)[\s\S]*?:\s*"?([\s\S]*?)"?$/i
-        const instaMatch = description.match(instaRegex)
-        if (instaMatch && instaMatch[1]) {
-          description = instaMatch[1].trim()
-        }
-      }
-    }
 
     // max.ru specific extraction
     if (url.includes('max.ru/')) {

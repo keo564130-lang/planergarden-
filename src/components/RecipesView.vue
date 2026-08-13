@@ -441,6 +441,9 @@ const parseLink = async () => {
     
     const isGeneric = !finalTitle || 
       url.includes('max.ru') ||
+      url.includes('instagram.com') ||
+      url.includes('instagr.am') ||
+      lowerTitle.includes('instagram') ||
       lowerTitle.includes('вконтакте') || 
       lowerTitle.includes('vk.com') || 
       lowerTitle.includes('vkontakte') || 
