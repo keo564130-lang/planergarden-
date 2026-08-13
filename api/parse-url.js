@@ -174,6 +174,16 @@ export default async function handler(req, res) {
 
     // Instagram specific extraction
     if (url.includes('instagram.com')) {
+      // Clean up Instagram title (which sometimes contains the full post)
+      if (title) {
+        const titleMatch = title.match(/^(.*?)\s*(?:on Instagram|в Instagram|от .*? г\.)/i)
+        if (titleMatch && titleMatch[1]) {
+          title = titleMatch[1].trim()
+        } else if (title.length > 50) {
+          title = 'Instagram Post'
+        }
+      }
+
       // Try to find the full caption in ld+json
       let fullCaption = null
       const jsonMatches = html.match(/<script type=["']application\/ld\+json["']>([\s\S]*?)<\/script>/gi)
