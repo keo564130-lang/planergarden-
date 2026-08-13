@@ -118,7 +118,18 @@ export default async function handler(req, res) {
     }
 
     const title = getOg('title') || getMeta('title') || getTitleTag()
-    const description = getOg('description') || getMeta('description') || ''
+    let description = getOg('description') || getMeta('description') || ''
+    
+    // Clean HTML from description
+    description = description
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+    
     let image = getOg('image') || ''
     
     // Make image URL absolute

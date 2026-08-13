@@ -321,18 +321,29 @@ const parseLink = async () => {
       note: ''
     }
     
-    // Try to load image via proxy
+    // Try to load image via proxy and compress
     if (data.image) {
       try {
         const imgRes = await fetch(data.image)
         if (imgRes.ok) {
           const blob = await imgRes.blob()
           const dataUrl = await new Promise((resolve) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result)
-            reader.readAsDataURL(blob)
+            const blobUrl = URL.createObjectURL(blob)
+            const img = new Image()
+            img.onload = () => {
+              const canvas = document.createElement('canvas')
+              let w = img.width, h = img.height
+              if (w > 800) { h = Math.round((h * 800) / w); w = 800 }
+              canvas.width = w
+              canvas.height = h
+              canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+              URL.revokeObjectURL(blobUrl)
+              resolve(canvas.toDataURL('image/jpeg', 0.6))
+            }
+            img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(null) }
+            img.src = blobUrl
           })
-          editingRecipe.value.photos.push(dataUrl)
+          if (dataUrl) editingRecipe.value.photos.push(dataUrl)
         }
       } catch (e) {
         // Image failed, continue without it
