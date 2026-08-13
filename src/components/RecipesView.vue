@@ -398,6 +398,20 @@ const parseLink = async () => {
       }
     }
     
+    // Clean HTML tags from description (microlink sometimes returns <br>)
+    if (data.description) {
+      data.description = data.description
+        .replace(/<br\s*\/?>/gi, '\n') // Convert <br> to newlines
+        .replace(/<[^>]+>/g, '')       // Strip all other HTML tags
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .trim();
+    }
+    
     // Fallback for generic VK titles
     let finalTitle = data.title || ''
     const lowerTitle = finalTitle.toLowerCase()
@@ -414,8 +428,18 @@ const parseLink = async () => {
     if (isGeneric) {
       if (data.description) {
         // Take the first line or sentence as title
-        const firstLine = data.description.split('\n')[0].trim()
-        finalTitle = firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine
+        const lines = data.description.split('\n').filter(l => l.trim())
+        const firstLine = lines.length ? lines[0].trim() : ''
+        
+        if (firstLine) {
+          finalTitle = firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine
+          // Remove the first line from the content so it doesn't duplicate the title
+          const remainingDesc = data.description.substring(firstLine.length).trim()
+          // Only replace if there's remaining content, otherwise keep the full text
+          data.description = remainingDesc || data.description
+        } else {
+          finalTitle = 'Новый рецепт'
+        }
       } else {
         finalTitle = 'Новый рецепт'
       }
