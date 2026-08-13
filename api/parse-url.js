@@ -75,6 +75,16 @@ export default async function handler(req, res) {
     // First try to decode as UTF-8 to check meta charset
     let html = buffer.toString('utf-8')
     
+    // Check for VK unsupported browser or bot block
+    if (html.includes('This may cause VK to work slowly') || html.includes('Обновите ваш браузер') || html.includes('unsupported browser')) {
+      throw new Error('VK blocked the parser (unsupported browser), falling back to microlink')
+    }
+    
+    // Check for Instagram login wall
+    if (html.includes('Login • Instagram') || html.includes('Войти • Instagram') || html.includes('instagram.com/accounts/login')) {
+      throw new Error('Instagram login wall detected, falling back to microlink')
+    }
+
     // Check meta charset in HTML
     const metaCharset = html.match(/<meta[^>]*charset=["']?([^"'\s;>]+)/i)
     if (metaCharset) {
