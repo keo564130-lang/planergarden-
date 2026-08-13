@@ -270,6 +270,81 @@ const scrollToField = (e) => {
     }
   }, 400)
 }
+
+// --- Link parsing ---
+const showLinkModal = ref(false)
+const linkUrl = ref('')
+const linkLoading = ref(false)
+const linkError = ref('')
+
+const openLinkModal = () => {
+  linkUrl.value = ''
+  linkError.value = ''
+  linkLoading.value = false
+  showLinkModal.value = true
+}
+
+const parseLink = async () => {
+  const url = linkUrl.value.trim()
+  if (!url) return
+  if (!url.startsWith('http')) {
+    linkError.value = 'Вставьте ссылку (начинается с http)'
+    return
+  }
+  
+  linkLoading.value = true
+  linkError.value = ''
+  
+  try {
+    const res = await fetch('/api/parse-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    })
+    
+    const data = await res.json()
+    
+    if (!res.ok) {
+      linkError.value = data.error || 'Не удалось загрузить'
+      linkLoading.value = false
+      return
+    }
+    
+    // Fill recipe form
+    isEditing.value = false
+    editingRecipe.value = {
+      id: null,
+      category_id: props.categories.length ? props.categories[0].id : null,
+      name: data.title || '',
+      content: data.description || '',
+      photos: [],
+      note: ''
+    }
+    
+    // Try to load image
+    if (data.image) {
+      try {
+        const imgRes = await fetch(data.image)
+        const blob = await imgRes.blob()
+        const dataUrl = await new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.readAsDataURL(blob)
+        })
+        editingRecipe.value.photos.push(dataUrl)
+      } catch (e) {
+        // Image failed, continue without it
+      }
+    }
+    
+    showLinkModal.value = false
+    showRecipeModal.value = true
+  } catch (e) {
+    linkError.value = 'Ошибка сети'
+  }
+  
+  linkLoading.value = false
+}
 </script>
 <template>
   <div class="recipes-view">
@@ -314,7 +389,12 @@ const scrollToField = (e) => {
           </div>
         </div>
         
-        <button v-if="categories.length > 0" class="fab" @click="openAddCategory">+</button>
+        <div v-if="categories.length > 0" class="fab-group">
+          <button class="fab-small" @click="openLinkModal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+          </button>
+          <button class="fab" @click="openAddCategory">+</button>
+        </div>
       </div>
 
       <!-- VIEW 2: RECIPE DETAIL -->
@@ -387,6 +467,26 @@ const scrollToField = (e) => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- MODAL: ADD FROM LINK -->
+    <transition name="slide-up">
+      <div v-if="showLinkModal" class="modal-overlay">
+        <div class="modal-content small-modal">
+          <h3>📎 Добавить из ссылки</h3>
+          <p class="link-hint">Скопируйте ссылку на пост из ВК, Телеграм или Инстаграм и вставьте сюда</p>
+          <div class="input-group">
+            <input type="url" v-model="linkUrl" placeholder="https://vk.com/..." @keyup.enter="parseLink">
+          </div>
+          <div v-if="linkError" class="link-error">{{ linkError }}</div>
+          <div class="modal-actions">
+            <button class="btn-text" @click="showLinkModal = false">Отмена</button>
+            <button class="btn-primary" @click="parseLink" :disabled="linkLoading">
+              {{ linkLoading ? '⏳ Загрузка...' : '📥 Загрузить' }}
+            </button>
           </div>
         </div>
       </div>
@@ -675,10 +775,33 @@ button {
 .recipe-item-photo img { width: 100%; height: 100%; object-fit: cover; }
 .add-recipe-btn { width: 100%; text-align: left; padding: 12px 0 0; }
 
-.fab {
+.fab-group {
   position: fixed;
   bottom: 96px;
-  right: 24px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+}
+.fab-small {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--primary);
+  border: 1px solid var(--surface-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: transform var(--transition-spring);
+}
+.fab-small:active { transform: scale(0.92); }
+
+.fab {
   width: 56px;
   height: 56px;
   border-radius: var(--radius-full);
@@ -689,10 +812,23 @@ button {
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-lg);
-  z-index: 10;
   transition: transform var(--transition-spring);
+  border: none;
+  cursor: pointer;
 }
 .fab:active { transform: scale(0.95); }
+
+.link-hint {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+.link-error {
+  font-size: 13px;
+  color: #d32f2f;
+  margin: -8px 0 12px;
+}
 
 /* Detail View */
 .detail-view { background: var(--bg-app); display: flex; flex-direction: column; }
