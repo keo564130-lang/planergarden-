@@ -942,6 +942,8 @@ button {
   width: 100%;
   aspect-ratio: 4/3;
   max-height: 260px;
+  min-height: 200px; /* Fallback for iOS aspect-ratio collapse */
+  flex-shrink: 0; /* Prevent flex container from collapsing it */
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-md);
