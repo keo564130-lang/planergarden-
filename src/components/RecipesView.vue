@@ -384,6 +384,45 @@ const parseLink = async () => {
   
   try {
     let data;
+
+    // Try Cobalt client-side fetch first for Instagram
+    if (url.includes('instagram.com/')) {
+      try {
+        const cobaltRes = await fetch('https://api.cobalt.tools/', {
+          method: 'POST',
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url })
+        });
+        if (cobaltRes.ok) {
+          const cobaltData = await cobaltRes.json();
+          if (cobaltData.url) {
+            data = {
+              title: 'Instagram Post',
+              description: 'Видео/фото из Instagram',
+              originalImage: cobaltData.url,
+              image: cobaltData.url
+            };
+            if (cobaltData.thumbnail) {
+              data.originalImage = cobaltData.thumbnail;
+              data.image = cobaltData.thumbnail;
+            }
+            linkData.value = data;
+            title.value = data.title;
+            description.value = data.description;
+            if (data.image) {
+              linkImagePreview.value = data.image;
+            }
+            linkModal.value = true;
+            linkUrl.value = url;
+            linkLoading.value = false;
+            return; // skip the rest
+          }
+        }
+      } catch (cobaltErr) {
+        console.log('Cobalt fallback failed', cobaltErr);
+      }
+    }
+
     try {
       const res = await fetch('/api/parse-url', {
         method: 'POST',
@@ -398,46 +437,7 @@ const parseLink = async () => {
       }
       data = jsonData
     } catch (e) {
-      if (e.message && e.message.includes('Instagram')) {
-        try {
-          const cobaltRes = await fetch('https://api.cobalt.tools/', {
-            method: 'POST',
-            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: url })
-          });
-          if (cobaltRes.ok) {
-            const cobaltData = await cobaltRes.json();
-            if (cobaltData.url) {
-              data = {
-                title: 'Instagram Post',
-                description: 'Видео/фото из Instagram',
-                originalImage: cobaltData.url,
-                image: cobaltData.url
-              };
-              if (cobaltData.thumbnail) {
-                data.originalImage = cobaltData.thumbnail;
-                data.image = cobaltData.thumbnail;
-              }
-              linkData.value = data;
-              title.value = data.title;
-              description.value = data.description;
-              if (data.image) {
-                linkImagePreview.value = data.image;
-              }
-              linkModal.value = true;
-              linkUrl.value = url;
-              linkLoading.value = false;
-              return; // skip the rest
-            }
-          }
-        } catch (cobaltErr) {
-          console.log('Cobalt fallback failed', cobaltErr);
-        }
-        // Instead of throwing, just let it fall through to microlink fallback
-        console.log('Instagram backend and cobalt failed, falling through to microlink');
-      } else {
-        console.log('Primary parsing failed, trying fallback...', e)
-      }
+      console.log('Primary parsing failed, trying fallback...', e)
       // Fallback to microlink if our backend is blocked/timed out
       const mUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&prerender=true`
       const resFallback = await fetch(mUrl)
