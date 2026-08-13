@@ -7,6 +7,7 @@ import DayTablesView from './components/DayTablesView.vue'
 import TimePickerModal from './components/TimePickerModal.vue'
 import TableSelectorModal from './components/TableSelectorModal.vue'
 import AiChat from './components/AiChat.vue'
+import RecipesView from './components/RecipesView.vue'
 
 // Base configurations
 const year = ref(2026)
@@ -18,7 +19,7 @@ const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).pa
 const selectedDate = ref(todayStr)
 
 // Bottom navigation
-const activeTab = ref('calendar') // 'calendar', 'ai', 'settings'
+const activeTab = ref('calendar') // 'calendar', 'recipes', 'ai', 'settings'
 
 // Day sub-navigation (Tasks vs Tables)
 const activeDayTab = ref('tasks')
@@ -41,6 +42,12 @@ const aiMessages = ref([])
 const allAiMessages = ref({}) // { [chatId]: Array<Message> }
 const currentChatId = ref(null)
 const isAiTyping = ref(false)
+
+// Recipe state
+const recipeCategories = ref([])
+const recipes = ref([])
+const recipeNotes = ref([])
+const shareData = ref(null)
 
 // Auth state
 const currentUser = ref(null)
@@ -160,6 +167,30 @@ const fetchCloudData = async () => {
     if (!chatsError && cloudChats) {
       aiChats.value = cloudChats
     }
+
+    // 4. Fetch recipe categories
+    const { data: cloudCategories } = await supabase
+      .from('recipe_categories')
+      .select('*')
+      .eq('user_id', currentUser.value.id)
+      .order('position', { ascending: true })
+    if (cloudCategories) recipeCategories.value = cloudCategories
+
+    // 5. Fetch recipes
+    const { data: cloudRecipes } = await supabase
+      .from('recipes')
+      .select('*')
+      .eq('user_id', currentUser.value.id)
+      .order('position', { ascending: true })
+    if (cloudRecipes) recipes.value = cloudRecipes
+
+    // 6. Fetch recipe notes
+    const { data: cloudNotes } = await supabase
+      .from('recipe_notes')
+      .select('*')
+      .eq('user_id', currentUser.value.id)
+      .order('created_at', { ascending: true })
+    if (cloudNotes) recipeNotes.value = cloudNotes
   } catch (err) {
     console.error('Failed to sync cloud data:', err.message)
   }
@@ -226,6 +257,12 @@ onMounted(async () => {
   const savedChats = localStorage.getItem('garden_planner_ai_chats')
   if (savedChats) { try { aiChats.value = JSON.parse(savedChats) } catch (e) {} }
   const savedAllMsgs = localStorage.getItem('garden_planner_all_ai_messages')
+  const savedCategories = localStorage.getItem('garden_planner_recipe_categories')
+  if (savedCategories) { try { recipeCategories.value = JSON.parse(savedCategories) } catch (e) {} }
+  const savedRecipes = localStorage.getItem('garden_planner_recipes')
+  if (savedRecipes) { try { recipes.value = JSON.parse(savedRecipes) } catch (e) {} }
+  const savedNotes = localStorage.getItem('garden_planner_recipe_notes')
+  if (savedNotes) { try { recipeNotes.value = JSON.parse(savedNotes) } catch (e) {} }
   if (savedAllMsgs) { try { allAiMessages.value = JSON.parse(savedAllMsgs) } catch (e) {} }
 
   // 3. iOS/Android keyboard fix — global level
@@ -328,6 +365,9 @@ watch(tasks, (v) => { safeLocalSet('garden_planner_tasks', v) }, { deep: true })
 watch(dayTables, (v) => { safeLocalSet('garden_planner_day_tables', v) }, { deep: true })
 watch(aiChats, (v) => { safeLocalSet('garden_planner_ai_chats', v) }, { deep: true })
 watch(allAiMessages, (v) => { safeLocalSet('garden_planner_all_ai_messages', v) }, { deep: true })
+watch(recipeCategories, (v) => { safeLocalSet('garden_planner_recipe_categories', v) }, { deep: true })
+watch(recipes, (v) => { safeLocalSet('garden_planner_recipes', v) }, { deep: true })
+watch(recipeNotes, (v) => { safeLocalSet('garden_planner_recipe_notes', v) }, { deep: true })
 
 const updateMetaThemeColor = (isDark) => {
   const themeColor = isDark ? '#1c211e' : '#ffffff'
@@ -677,8 +717,89 @@ const displayUsername = computed(() => {
   return currentUser.value.email.replace('@planergarden.app', '')
 })
 
+// Recipe handlers
+const handleAddCategory = async (name, emoji) => {
+  const tempId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()
+  const localCat = { id: tempId, name, emoji, position: recipeCategories.value.length, user_id: currentUser.value?.id, created_at: new Date().toISOString() }
+  recipeCategories.value.push(localCat)
+  if (supabase && currentUser.value) {
+    try {
+      const { data, error } = await supabase.from('recipe_categories').insert({ name, emoji, position: recipeCategories.value.length - 1, user_id: currentUser.value.id }).select()
+      if (error) throw error
+      if (data?.[0]) { const idx = recipeCategories.value.findIndex(c => c.id === tempId); if (idx !== -1) recipeCategories.value[idx] = data[0] }
+    } catch (err) { console.error('Failed to add category:', err.message) }
+  }
+}
+
+const handleDeleteCategory = async (categoryId) => {
+  recipeCategories.value = recipeCategories.value.filter(c => c.id !== categoryId)
+  recipes.value = recipes.value.filter(r => r.category_id !== categoryId)
+  if (supabase && currentUser.value) {
+    try { await supabase.from('recipe_categories').delete().eq('id', categoryId) } catch (err) { console.error('Failed to delete category:', err.message) }
+  }
+}
+
+const handleAddRecipe = async (recipe) => {
+  const tempId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()
+  const localRecipe = { id: tempId, category_id: recipe.category_id, name: recipe.name, content: recipe.content, photos: recipe.photos || [], position: recipes.value.length, user_id: currentUser.value?.id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+  recipes.value.push(localRecipe)
+  if (supabase && currentUser.value) {
+    try {
+      const { data, error } = await supabase.from('recipes').insert({ category_id: recipe.category_id, name: recipe.name, content: recipe.content, photos: recipe.photos || [], position: recipes.value.length - 1, user_id: currentUser.value.id }).select()
+      if (error) throw error
+      if (data?.[0]) { const idx = recipes.value.findIndex(r => r.id === tempId); if (idx !== -1) recipes.value[idx] = data[0] }
+    } catch (err) { console.error('Failed to add recipe:', err.message) }
+  }
+  // Add initial note if provided
+  if (recipe.note && recipe.note.trim()) {
+    const recipeId = recipes.value.find(r => r.id === tempId)?.id || tempId
+    handleAddNote(recipeId, recipe.note)
+  }
+}
+
+const handleUpdateRecipe = async (recipe) => {
+  const idx = recipes.value.findIndex(r => r.id === recipe.id)
+  if (idx !== -1) {
+    recipes.value[idx] = { ...recipes.value[idx], name: recipe.name, content: recipe.content, photos: recipe.photos, updated_at: new Date().toISOString() }
+  }
+  if (supabase && currentUser.value) {
+    try { await supabase.from('recipes').update({ name: recipe.name, content: recipe.content, photos: recipe.photos, updated_at: new Date().toISOString() }).eq('id', recipe.id) } catch (err) { console.error('Failed to update recipe:', err.message) }
+  }
+}
+
+const handleDeleteRecipe = async (recipeId) => {
+  recipes.value = recipes.value.filter(r => r.id !== recipeId)
+  recipeNotes.value = recipeNotes.value.filter(n => n.recipe_id !== recipeId)
+  if (supabase && currentUser.value) {
+    try { await supabase.from('recipes').delete().eq('id', recipeId) } catch (err) { console.error('Failed to delete recipe:', err.message) }
+  }
+}
+
+const handleAddNote = async (recipeId, text) => {
+  const tempId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString()
+  const localNote = { id: tempId, recipe_id: recipeId, text, user_id: currentUser.value?.id, created_at: new Date().toISOString() }
+  recipeNotes.value.push(localNote)
+  if (supabase && currentUser.value) {
+    try {
+      const { data, error } = await supabase.from('recipe_notes').insert({ recipe_id: recipeId, text, user_id: currentUser.value.id }).select()
+      if (error) throw error
+      if (data?.[0]) { const idx = recipeNotes.value.findIndex(n => n.id === tempId); if (idx !== -1) recipeNotes.value[idx] = data[0] }
+    } catch (err) { console.error('Failed to add note:', err.message) }
+  }
+}
+
+const handleDeleteNote = async (noteId) => {
+  recipeNotes.value = recipeNotes.value.filter(n => n.id !== noteId)
+  if (supabase && currentUser.value) {
+    try { await supabase.from('recipe_notes').delete().eq('id', noteId) } catch (err) { console.error('Failed to delete note:', err.message) }
+  }
+}
+
+const handleClearShareData = () => { shareData.value = null }
+
 // Computed header title
 const headerTitle = () => {
+  if (activeTab.value === 'recipes') return '🍳 Рецепты'
   if (activeTab.value === 'ai') return 'ИИ Помощник'
   if (activeTab.value === 'settings') return isRealAccount.value ? 'Профиль' : 'Аккаунт'
   if (viewLevel.value === 'tasks') return activeDayTab.value === 'tasks' ? 'Задачи на день' : 'Таблицы дня'
@@ -799,6 +920,23 @@ const headerTitle = () => {
             @delete-chat="handleDeleteChat"
           />
 
+          <!-- RECIPES TAB -->
+          <RecipesView
+            v-if="activeTab === 'recipes'"
+            :categories="recipeCategories"
+            :recipes="recipes"
+            :recipe-notes="recipeNotes"
+            :share-data="shareData"
+            @add-category="handleAddCategory"
+            @delete-category="handleDeleteCategory"
+            @add-recipe="handleAddRecipe"
+            @update-recipe="handleUpdateRecipe"
+            @delete-recipe="handleDeleteRecipe"
+            @add-note="handleAddNote"
+            @delete-note="handleDeleteNote"
+            @clear-share-data="handleClearShareData"
+          />
+
           <!-- SETTINGS TAB (placeholder) -->
           <div v-if="activeTab === 'settings'" class="settings-page">
             <div v-if="isRealAccount" class="settings-section">
@@ -873,6 +1011,12 @@ const headerTitle = () => {
             <line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
           <span class="nav-label">Планер</span>
+        </button>
+        <button class="bottom-nav-item" :class="{ active: activeTab === 'recipes' }" @click="activeTab = 'recipes'">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19h16M4 15h16M8 11V5a2 2 0 1 1 4 0v6M14 11V7a2 2 0 1 1 4 0v4"></path>
+          </svg>
+          <span class="nav-label">Рецепты</span>
         </button>
         <button class="bottom-nav-item" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

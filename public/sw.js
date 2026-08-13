@@ -1,4 +1,4 @@
-// Service worker for PWA notification support
+// Service worker for PWA notification support + Share Target
 self.addEventListener('install', (e) => {
   self.skipWaiting()
 })
@@ -6,6 +6,61 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(clients.claim())
 })
+
+// Handle Web Share Target POST
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url)
+  
+  // Intercept share target POST requests
+  if (url.pathname === '/' && url.searchParams.has('share') && event.request.method === 'POST') {
+    event.respondWith((async () => {
+      try {
+        const formData = await event.request.formData()
+        const title = formData.get('title') || ''
+        const text = formData.get('text') || ''
+        const shareUrl = formData.get('url') || ''
+        
+        // Collect shared photos
+        const photos = []
+        const photoFiles = formData.getAll('photos')
+        for (const file of photoFiles) {
+          if (file && file.size > 0) {
+            const base64 = await fileToBase64(file)
+            if (base64) photos.push(base64)
+          }
+        }
+        
+        // Store share data in IndexedDB for the app to pick up
+        const shareData = { title, text: text + (shareUrl ? '\n' + shareUrl : ''), photos, timestamp: Date.now() }
+        
+        // Use a BroadcastChannel to notify the app
+        const channel = new BroadcastChannel('share-target')
+        channel.postMessage(shareData)
+        channel.close()
+        
+        // Also store in cache as fallback
+        const cache = await caches.open('share-target-cache')
+        await cache.put('/_share_data', new Response(JSON.stringify(shareData)))
+        
+        // Redirect to app
+        return Response.redirect('/?shared=1', 303)
+      } catch (err) {
+        return Response.redirect('/', 303)
+      }
+    })())
+    return
+  }
+})
+
+// Convert File to base64 data URI
+function fileToBase64(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = () => resolve(null)
+    reader.readAsDataURL(file)
+  })
+}
 
 // Listen for push notifications from the server
 self.addEventListener('push', (event) => {
