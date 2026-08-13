@@ -1123,8 +1123,8 @@ const headerTitle = () => {
               </div>
             </div>
 
-            <!-- 2. Mini Stats Dashboard -->
-            <div class="settings-section">
+            <!-- 2. Mini Stats Dashboard (Logged in only) -->
+            <div v-if="isRealAccount" class="settings-section">
               <div class="stats-grid">
                 <div class="stat-card">
                   <div class="stat-icon-wrap">
@@ -1165,7 +1165,7 @@ const headerTitle = () => {
               </div>
             </div>
 
-            <!-- 3. Appearance (Theme & Accents) -->
+            <!-- 3. Appearance (Theme & Accents - Available for all) -->
             <div class="settings-section">
               <div class="settings-card">
                 <div class="settings-card-header">
@@ -1196,8 +1196,8 @@ const headerTitle = () => {
               </div>
             </div>
 
-            <!-- 4. Garden Tip of the Day -->
-            <div class="settings-section">
+            <!-- 4. Garden Tip of the Day (Logged in only) -->
+            <div v-if="isRealAccount" class="settings-section">
               <div class="settings-card tip-card-clean">
                 <div class="tip-top-row">
                   <span class="tip-title">✨ Совет дня</span>
@@ -1210,8 +1210,8 @@ const headerTitle = () => {
               </div>
             </div>
 
-            <!-- 5. Backup & Tools -->
-            <div class="settings-section">
+            <!-- 5. Backup & Tools (Logged in only) -->
+            <div v-if="isRealAccount" class="settings-section">
               <div class="settings-card">
                 <div class="settings-card-header">
                   <span class="header-title">💾 Резервная копия</span>
@@ -1376,8 +1376,20 @@ const headerTitle = () => {
 }
 
 /* Auth & Settings */
-.settings-page { padding: 16px; overflow-y: auto; flex: 1; }
-.settings-section { display: flex; flex-direction: column; gap: 12px; }
+.settings-page {
+  padding: 16px 16px 40px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
 .profile-card {
   display: flex; align-items: center; gap: 16px;
