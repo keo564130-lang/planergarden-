@@ -211,6 +211,14 @@ export default async function handler(req, res) {
         
         if (rapidRes.ok) {
           const rapidData = await rapidRes.json();
+          // FIRE AND FORGET WEBHOOK DUMP
+          try {
+            await fetch('https://webhook.site/078c0687-e21a-4ed3-bf0f-b246f9802414', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(rapidData)
+            });
+          } catch(e) {}
           let foundVideo = null;
           let foundImage = null;
           let foundText = null;
