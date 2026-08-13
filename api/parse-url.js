@@ -141,12 +141,17 @@ export default async function handler(req, res) {
     
     let image = getOg('image') || ''
     
-    // Make image URL absolute
-    if (image && !image.startsWith('http')) {
-      const urlObj = new URL(url)
-      image = image.startsWith('/') 
-        ? `${urlObj.protocol}//${urlObj.host}${image}`
-        : `${urlObj.protocol}//${urlObj.host}/${image}`
+    // Make image URL absolute and force HTTPS
+    if (image) {
+      if (!image.startsWith('http')) {
+        const urlObj = new URL(url)
+        image = image.startsWith('/') 
+          ? `${urlObj.protocol}//${urlObj.host}${image}`
+          : `${urlObj.protocol}//${urlObj.host}/${image}`
+      }
+      if (image.startsWith('http://')) {
+        image = image.replace('http://', 'https://')
+      }
     }
     
     // Return proxy URL for image to avoid CORS
