@@ -910,7 +910,8 @@ button {
 }
 .detail-carousel {
   display: flex;
-  height: 100%;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
   transition: transform 0.35s cubic-bezier(0.2, 0, 0, 1);
 }
 .detail-carousel-slide {

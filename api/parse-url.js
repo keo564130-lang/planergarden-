@@ -120,6 +120,15 @@ export default async function handler(req, res) {
     const title = getOg('title') || getMeta('title') || getTitleTag()
     let description = getOg('description') || getMeta('description') || ''
     
+    // For VK, og:description is often truncated. Try to get the full post text from HTML
+    const vkTextMatch = html.match(/<div[^>]*data-testid=["']wall_post_text["'][^>]*>([\s\S]*?)<\/div>/i) || 
+                        html.match(/<div[^>]*class=["'][^"']*wall_post_text[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ||
+                        html.match(/<div[^>]*class=["'][^"']*pi_text[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)
+    
+    if (vkTextMatch && vkTextMatch[1]) {
+      description = decodeEntities(vkTextMatch[1])
+    }
+    
     // Clean HTML from description
     description = description
       .replace(/<br\s*\/?>/gi, '\n')
