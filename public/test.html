@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Insta API Test</title>
+</head>
+<body>
+    <h3>Paste Insta URL or Shortcode:</h3>
+    <input type="text" id="url" value="C8qL8Zsoq6n" style="width:300px">
+    <button onclick="testAPI()">Test API</button>
+    <pre id="output" style="background:#eee; padding:10px; white-space:pre-wrap; word-wrap:break-word; max-width: 100%; min-height: 200px;"></pre>
+
+    <script>
+        async function testAPI() {
+            const val = document.getElementById('url').value;
+            const shortcodeMatch = val.match(/(?:reel|p)\/([a-zA-Z0-9_-]+)/i);
+            const shortcode = shortcodeMatch ? shortcodeMatch[1] : encodeURIComponent(val);
+            
+            document.getElementById('output').innerText = "Loading...";
+
+            try {
+                const res = await fetch(`https://instagram360.p.rapidapi.com/postdetail/?code_or_url=${shortcode}`, {
+                    headers: {
+                        'x-rapidapi-key': 'f09a814d17msha5fcec7fa4a0149p1de51djsnfa6510e57f67',
+                        'x-rapidapi-host': 'instagram360.p.rapidapi.com'
+                    }
+                });
+                const data = await res.json();
+                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+            } catch (e) {
+                document.getElementById('output').innerText = "Error: " + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
