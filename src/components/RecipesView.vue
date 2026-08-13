@@ -156,16 +156,32 @@ const openFullscreen = (src) => {
   showFullscreenPhoto.value = true
 }
 
+// Media items computed (Video is ALWAYS 1st, followed by photos)
+const selectedRecipeMedia = computed(() => {
+  if (!selectedRecipe.value) return []
+  const items = []
+  if (selectedRecipe.value.video_url) {
+    items.push({ type: 'video', src: selectedRecipe.value.video_url })
+  }
+  if (selectedRecipe.value.photos && selectedRecipe.value.photos.length) {
+    selectedRecipe.value.photos.forEach(photo => {
+      items.push({ type: 'photo', src: photo })
+    })
+  }
+  return items
+})
+
 // Carousel swipe logic
 let touchStartX = 0
 let touchEndX = 0
 const handleTouchStart = (e) => { touchStartX = e.changedTouches[0].screenX }
 const handleTouchMove = (e) => { touchEndX = e.changedTouches[0].screenX }
 const handleTouchEnd = () => {
-  if (!selectedRecipe.value?.photos?.length) return
+  const total = selectedRecipeMedia.value.length
+  if (total <= 1) return
   const diff = touchStartX - touchEndX
   if (Math.abs(diff) > 50) {
-    if (diff > 0 && currentCarouselIndex.value < selectedRecipe.value.photos.length - 1) {
+    if (diff > 0 && currentCarouselIndex.value < total - 1) {
       currentCarouselIndex.value++
     } else if (diff < 0 && currentCarouselIndex.value > 0) {
       currentCarouselIndex.value--
@@ -618,26 +634,38 @@ const parseLink = async () => {
         </div>
 
         <div class="detail-body">
-          <!-- Video player card -->
-          <div class="detail-video-card" v-if="selectedRecipe.video_url">
-            <video 
-              :src="selectedRecipe.video_url" 
-              controls 
-              playsinline 
-              preload="metadata"
-              class="recipe-video-player"
-            ></video>
-          </div>
-
-          <div class="detail-photo-card" v-if="selectedRecipe.photos && selectedRecipe.photos.length > 0"
+          <!-- Unified Media Carousel (Video 1st, then Photos) -->
+          <div class="detail-photo-card" v-if="selectedRecipeMedia.length > 0"
                @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
             <div class="detail-carousel" :style="{ transform: `translateX(-${currentCarouselIndex * 100}%)` }">
-              <div class="detail-carousel-slide" v-for="(photo, i) in selectedRecipe.photos" :key="i" @click="openFullscreen(photo)">
-                <img :src="photo" />
+              <div class="detail-carousel-slide" v-for="(item, i) in selectedRecipeMedia" :key="i">
+                <template v-if="item.type === 'video'">
+                  <div class="carousel-video-wrapper">
+                    <video 
+                      :src="item.src" 
+                      controls 
+                      playsinline 
+                      preload="metadata"
+                      class="carousel-video-player"
+                    ></video>
+                  </div>
+                </template>
+                <template v-else>
+                  <img :src="item.src" @click="openFullscreen(item.src)" />
+                </template>
               </div>
             </div>
-            <div class="detail-photo-dots" v-if="selectedRecipe.photos.length > 1">
-              <span v-for="(_, i) in selectedRecipe.photos" :key="i" class="photo-dot" :class="{ active: i === currentCarouselIndex }"></span>
+            
+            <div class="detail-photo-dots" v-if="selectedRecipeMedia.length > 1">
+              <span 
+                v-for="(item, i) in selectedRecipeMedia" 
+                :key="i" 
+                class="photo-dot" 
+                :class="{ 
+                  active: i === currentCarouselIndex,
+                  'video-dot': item.type === 'video'
+                }"
+              ></span>
             </div>
           </div>
 
@@ -1210,19 +1238,19 @@ button {
   gap: 16px;
 }
 
-/* Photo inside card */
+/* Photo/Video inside unified card */
 .detail-photo-card {
   position: relative;
   width: 100%;
   aspect-ratio: 4/3;
-  max-height: 260px;
-  min-height: 200px; /* Fallback for iOS aspect-ratio collapse */
+  max-height: 320px;
+  min-height: 220px; /* Fallback for iOS aspect-ratio collapse */
   flex-shrink: 0; /* Prevent flex container from collapsing it */
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-md);
   border: 1px solid var(--surface-border);
-  background: var(--surface-container);
+  background: #000;
 }
 .detail-carousel {
   display: flex;
@@ -1232,9 +1260,25 @@ button {
 }
 .detail-carousel-slide {
   width: 100%; height: 100%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #000;
 }
 .detail-carousel-slide img {
   width: 100%; height: 100%; object-fit: cover;
+}
+.carousel-video-wrapper {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.carousel-video-player {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
 }
 .detail-photo-dots {
   position: absolute;
@@ -1702,32 +1746,6 @@ button {
   color: #fff;
   border-radius: 50%;
   font-size: 20px;
-}
-
-/* Video player in Detail */
-.detail-video-card {
-  width: 100%;
-  min-height: 240px;
-  max-height: 520px;
-  flex-shrink: 0;
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--surface-border);
-  background: #000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-}
-.recipe-video-player {
-  width: 100%;
-  min-height: 240px;
-  max-height: 520px;
-  display: block;
-  object-fit: contain;
-  background: #000;
-  border-radius: var(--radius-xl);
 }
 
 /* Edit Modal Video styles */
