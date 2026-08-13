@@ -1707,6 +1707,9 @@ button {
 /* Video player in Detail */
 .detail-video-card {
   width: 100%;
+  min-height: 240px;
+  max-height: 520px;
+  flex-shrink: 0;
   border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-md);
@@ -1715,13 +1718,15 @@ button {
   display: flex;
   justify-content: center;
   align-items: center;
-  max-height: 520px;
+  position: relative;
 }
 .recipe-video-player {
   width: 100%;
+  min-height: 240px;
   max-height: 520px;
   display: block;
   object-fit: contain;
+  background: #000;
   border-radius: var(--radius-xl);
 }
 
