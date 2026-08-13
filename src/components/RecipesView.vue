@@ -433,9 +433,11 @@ const parseLink = async () => {
         } catch (cobaltErr) {
           console.log('Cobalt fallback failed', cobaltErr);
         }
-        throw new Error('К сожалению, Instagram полностью блокирует автоматическое скачивание. Пожалуйста, вставьте текст и фото вручную.');
+        // Instead of throwing, just let it fall through to microlink fallback
+        console.log('Instagram backend and cobalt failed, falling through to microlink');
+      } else {
+        console.log('Primary parsing failed, trying fallback...', e)
       }
-      console.log('Primary parsing failed, trying fallback...', e)
       // Fallback to microlink if our backend is blocked/timed out
       const mUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&prerender=true`
       const resFallback = await fetch(mUrl)
@@ -446,9 +448,6 @@ const parseLink = async () => {
       }
       
       const mTitle = mData.data.title || '';
-      if (url.includes('instagram.com/') && mTitle.toLowerCase().includes('instagram') && !mData.data.image?.url) {
-         throw new Error('К сожалению, Instagram полностью блокирует автоматическое скачивание. Пожалуйста, вставьте текст и фото вручную.');
-      }
       
       data = {
         title: mData.data.title || '',
