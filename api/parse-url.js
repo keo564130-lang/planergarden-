@@ -241,7 +241,11 @@ export default async function handler(req, res) {
           if (foundVideo) video = foundVideo;
           if (foundImage) image = foundImage;
           if (foundText) description = foundText;
-          title = "Instagram Post";
+          if (!title) title = "Instagram Post";
+        } else {
+          title = "API ERR: " + rapidRes.status + " " + rapidRes.statusText;
+          const text = await rapidRes.text();
+          description = text.substring(0, 100);
         }
       } catch(e) {
         console.error("RapidAPI instagram360 error:", e);
