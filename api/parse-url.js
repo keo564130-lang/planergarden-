@@ -197,6 +197,57 @@ export default async function handler(req, res) {
 
     // Instagram specific extraction
     if (url.includes('instagram.com')) {
+      // RapidAPI instagram360 Integration
+      try {
+        const shortcodeMatch = url.match(/(?:reel|p)\/([a-zA-Z0-9_-]+)/i);
+        const shortcode = shortcodeMatch ? shortcodeMatch[1] : encodeURIComponent(url);
+
+        const rapidRes = await fetch(`https://instagram360.p.rapidapi.com/postdetail/?code_or_url=${shortcode}`, {
+          headers: {
+            'x-rapidapi-key': 'f09a814d17msha5fcec7fa4a0149p1de51djsnfa6510e57f67',
+            'x-rapidapi-host': 'instagram360.p.rapidapi.com'
+          }
+        });
+        
+        if (rapidRes.ok) {
+          const rapidData = await rapidRes.json();
+          // Log it so we can see in Vercel logs if needed
+          console.log("RapidAPI response:", JSON.stringify(rapidData).substring(0, 300));
+          
+          // Robust extraction since we don't know the exact schema
+          const strData = JSON.stringify(rapidData);
+          
+          // Try to find video url
+          const videoMatch = strData.match(/"video_url"\s*:\s*"([^"]+)"/);
+          if (videoMatch) video = videoMatch[1];
+          
+          // Try to find display url (thumbnail)
+          const imageMatch = strData.match(/"display_url"\s*:\s*"([^"]+)"/) || strData.match(/"thumbnail_src"\s*:\s*"([^"]+)"/);
+          if (imageMatch) image = imageMatch[1];
+          
+          // Try to find caption text
+          // Typical graphQL: "edge_media_to_caption":{"edges":[{"node":{"text":"..."}}]}
+          const media = rapidData?.data?.xdt_shortcode_media || rapidData?.data || rapidData;
+          if (media) {
+            if (media.edge_media_to_caption?.edges?.[0]?.node?.text) {
+              description = media.edge_media_to_caption.edges[0].node.text;
+            } else if (media.caption?.text) {
+              description = media.caption.text;
+            } else if (media.caption && typeof media.caption === 'string') {
+              description = media.caption;
+            } else if (media.text) {
+              description = media.text;
+            }
+            
+            if (media.owner?.username) {
+              title = `Instagram: @${media.owner.username}`;
+            }
+          }
+        }
+      } catch(e) {
+        console.error("RapidAPI instagram360 error:", e);
+      }
+
       // Clean up Instagram title (which sometimes contains the full post)
       if (title) {
         const titleMatch = title.match(/^(.*?)\s*(?:on Instagram|в Instagram|от .*? г\.)/i)
@@ -234,28 +285,11 @@ export default async function handler(req, res) {
           description = instaMatch[1].trim()
         }
       }
-      
-      // Custom extraction for max.ru posts (channel avatar vs post content)
-      if (url.includes('max.ru/')) {
-        const textMatch = data.match(/message:\{text:\"(.*?)\"/);
-        if (textMatch) {
-           description = textMatch[1].replace(/\\n/g, '\n').replace(/\\\"/g, '"');
-        } else {
-           // Fallback to JSON-LD headline if message:text not found
-           const jsonLdMatch = data.match(/"headline":\s*"([^"]+)"/);
-           if (jsonLdMatch) {
-              description = jsonLdMatch[1];
-           }
-        }
-        const imgMatch = data.match(/attachmentType:\"MOVIE\",url:\"([^\"]+)\"/);
-        if (imgMatch) {
-           image = imgMatch[1];
-        }
-      }
     }
 
     // max.ru specific extraction
     if (url.includes('max.ru/')) {
+      title = '' // Clear the channel name from title
       const maxTextMatch = html.match(/message:\s*\{.*?text:\s*"([\s\S]*?[^\\])"\s*[,}]/i)
       if (maxTextMatch && maxTextMatch[1]) {
         description = decodeEntities(maxTextMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\'))

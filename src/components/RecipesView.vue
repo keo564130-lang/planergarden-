@@ -327,7 +327,7 @@ const adjustTextareaHeight = (e) => {
   const el = e?.target || e;
   if (!el) return;
   el.style.height = 'auto'
-  el.style.height = el.scrollHeight + 'px'
+  el.style.height = Math.min(el.scrollHeight, 300) + 'px'
 }
 
 watch([showRecipeModal, () => editingRecipe.value.content], () => {
@@ -385,43 +385,7 @@ const parseLink = async () => {
   try {
     let data;
 
-    // Try Cobalt client-side fetch first for Instagram
-    if (url.includes('instagram.com/')) {
-      try {
-        const cobaltRes = await fetch('https://api.cobalt.tools/', {
-          method: 'POST',
-          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: url })
-        });
-        if (cobaltRes.ok) {
-          const cobaltData = await cobaltRes.json();
-          if (cobaltData.url) {
-            data = {
-              title: 'Instagram Post',
-              description: 'Видео/фото из Instagram',
-              originalImage: cobaltData.url,
-              image: cobaltData.url
-            };
-            if (cobaltData.thumbnail) {
-              data.originalImage = cobaltData.thumbnail;
-              data.image = cobaltData.thumbnail;
-            }
-            linkData.value = data;
-            title.value = data.title;
-            description.value = data.description;
-            if (data.image) {
-              linkImagePreview.value = data.image;
-            }
-            linkModal.value = true;
-            linkUrl.value = url;
-            linkLoading.value = false;
-            return; // skip the rest
-          }
-        }
-      } catch (cobaltErr) {
-        console.log('Cobalt fallback failed', cobaltErr);
-      }
-    }
+    // Apify is currently broken by Instagram, relying entirely on backend RapidAPI parser
 
     try {
       const res = await fetch('/api/parse-url', {
@@ -1645,7 +1609,7 @@ button {
 .form-group textarea {
   min-height: 120px;
   resize: none;
-  overflow: hidden;
+  overflow-y: auto;
 }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   border-color: var(--primary);
