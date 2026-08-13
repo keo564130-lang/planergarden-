@@ -321,10 +321,22 @@ watch(() => props.shareData, (newVal) => {
   }
 }, { immediate: true })
 
+const contentTextareaRef = ref(null)
+
 const adjustTextareaHeight = (e) => {
-  e.target.style.height = 'auto'
-  e.target.style.height = e.target.scrollHeight + 'px'
+  const el = e?.target || e;
+  if (!el) return;
+  el.style.height = 'auto'
+  el.style.height = el.scrollHeight + 'px'
 }
+
+watch([showRecipeModal, () => editingRecipe.value.content], () => {
+  if (showRecipeModal.value && contentTextareaRef.value) {
+    nextTick(() => {
+      adjustTextareaHeight(contentTextareaRef.value)
+    })
+  }
+})
 
 // iOS keyboard: keep focused field visible
 const scrollToField = (e) => {
@@ -773,7 +785,7 @@ const parseLink = async () => {
             
             <div class="form-group">
               <label>Описание / Рецепт</label>
-              <textarea v-model="editingRecipe.content" @input="adjustTextareaHeight" @focus="scrollToField($event)" placeholder="Ингредиенты, шаги..."></textarea>
+              <textarea ref="contentTextareaRef" v-model="editingRecipe.content" @input="adjustTextareaHeight" @focus="scrollToField($event)" placeholder="Ингредиенты, шаги..."></textarea>
             </div>
           </div>
           
