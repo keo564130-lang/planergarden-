@@ -382,7 +382,8 @@ const parseLink = async () => {
     } catch (e) {
       console.log('Primary parsing failed, trying fallback...', e)
       // Fallback to microlink if our backend is blocked/timed out
-      const resFallback = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`)
+      const mUrl = `https://api.microlink.io/?url=${encodeURIComponent(url)}&prerender=true`
+      const resFallback = await fetch(mUrl)
       const mData = await resFallback.json()
       
       if (mData.status !== 'success') {
