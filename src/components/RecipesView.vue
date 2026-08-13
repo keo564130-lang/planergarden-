@@ -47,12 +47,14 @@ const showAddCategoryModal = ref(false)
 const newCategoryName = ref('')
 const newCategoryEmoji = ref('📁')
 const newCategoryColor = ref('default')
+const showCategoryColorPicker = ref(false)
 const emojiList = ['🍆','🍅','🥒','🫙','🥕','🌽','🍎','🍓','🫐','🍒','🥔','🧅','🍋','🌶️','🥬','🍇','📁']
 
 const openAddCategory = () => {
   newCategoryName.value = ''
-  newCategoryEmoji.value = '📁'
+  newCategoryEmoji.value = '🍔'
   newCategoryColor.value = 'default'
+  showCategoryColorPicker.value = false
   showAddCategoryModal.value = true
 }
 const addCategory = () => {
@@ -111,6 +113,8 @@ const backToList = () => {
   currentView.value = 'list'
   selectedRecipe.value = null
 }
+
+const showRecipeColorPicker = ref(false)
 
 // --- View 2: Recipe Detail ---
 const currentCarouselIndex = ref(0)
@@ -197,6 +201,7 @@ const removeRecipeTag = (tag) => {
 
 const openAddRecipe = (categoryId = null) => {
   isEditing.value = false
+  showRecipeColorPicker.value = false
   editingRecipe.value = {
     id: null,
     category_id: categoryId || (props.categories.length ? props.categories[0].id : null),
@@ -213,6 +218,7 @@ const openAddRecipe = (categoryId = null) => {
 const openEditRecipe = () => {
   if (!selectedRecipe.value) return
   isEditing.value = true
+  showRecipeColorPicker.value = false
   editingRecipe.value = {
     id: selectedRecipe.value.id,
     category_id: selectedRecipe.value.category_id,
@@ -682,12 +688,17 @@ const parseLink = async () => {
             </div>
           </div>
           <div class="input-group">
-            <label>Цвет</label>
-            <div class="color-grid">
+            <div class="color-picker-header" @click="showCategoryColorPicker = !showCategoryColorPicker">
+              <label>Цвет</label>
+              <div class="color-picker-preview" :style="{ background: newCategoryColor === 'default' ? 'var(--surface-border)' : newCategoryColor }">
+                <span v-if="newCategoryColor === 'default'" class="default-color-icon">✕</span>
+              </div>
+            </div>
+            <div class="color-grid" v-show="showCategoryColorPicker">
               <div v-for="color in palette" :key="color" class="color-option"
                    :class="{ active: newCategoryColor === color }"
                    :style="{ background: color === 'default' ? 'var(--surface)' : color }"
-                   @click="newCategoryColor = color">
+                   @click="newCategoryColor = color; showCategoryColorPicker = false">
                 <span v-if="color === 'default'" class="default-color-icon">✕</span>
               </div>
             </div>
@@ -734,12 +745,17 @@ const parseLink = async () => {
             <div class="island-divider"></div>
             
             <div class="form-group">
-              <label>Цвет карточки</label>
-              <div class="color-grid">
+              <div class="color-picker-header" @click="showRecipeColorPicker = !showRecipeColorPicker">
+                <label>Цвет карточки</label>
+                <div class="color-picker-preview" :style="{ background: editingRecipe.color === 'default' ? 'var(--surface-border)' : editingRecipe.color }">
+                  <span v-if="editingRecipe.color === 'default'" class="default-color-icon">✕</span>
+                </div>
+              </div>
+              <div class="color-grid" v-show="showRecipeColorPicker">
                 <div v-for="color in palette" :key="color" class="color-option"
                      :class="{ active: editingRecipe.color === color }"
                      :style="{ background: color === 'default' ? 'var(--surface)' : color }"
-                     @click="editingRecipe.color = color">
+                     @click="editingRecipe.color = color; showRecipeColorPicker = false">
                   <span v-if="color === 'default'" class="default-color-icon">✕</span>
                 </div>
               </div>
@@ -1394,6 +1410,26 @@ button {
   background: var(--primary-container);
   border: 2px solid var(--primary);
   transform: scale(1.1);
+}
+.color-picker-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.color-picker-header label {
+  margin-bottom: 0;
+  cursor: pointer;
+}
+.color-picker-preview {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--surface-border);
 }
 .default-color-icon {
   font-size: 16px;
