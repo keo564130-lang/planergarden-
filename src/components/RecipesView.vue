@@ -250,6 +250,12 @@ const adjustTextareaHeight = (e) => {
   e.target.style.height = 'auto'
   e.target.style.height = e.target.scrollHeight + 'px'
 }
+
+const scrollToField = (e) => {
+  setTimeout(() => {
+    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, 300)
+}
 </script>
 <template>
   <div class="recipes-view">
@@ -300,48 +306,34 @@ const adjustTextareaHeight = (e) => {
       <!-- VIEW 2: RECIPE DETAIL -->
       <div v-else-if="currentView === 'detail' && selectedRecipe" class="view detail-view" key="detail">
         
-        <!-- Photo area -->
-        <div class="detail-photo-area" v-if="selectedRecipe.photos && selectedRecipe.photos.length > 0"
-             @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
-          <div class="detail-carousel" :style="{ transform: `translateX(-${currentCarouselIndex * 100}%)` }">
-            <div class="detail-carousel-slide" v-for="(photo, i) in selectedRecipe.photos" :key="i" @click="openFullscreen(photo)">
-              <img :src="photo" />
-            </div>
-          </div>
-          <div class="detail-photo-dots" v-if="selectedRecipe.photos.length > 1">
-            <span v-for="(_, i) in selectedRecipe.photos" :key="i" class="photo-dot" :class="{ active: i === currentCarouselIndex }"></span>
-          </div>
-          <!-- Back & actions overlay on photo -->
-          <div class="detail-photo-actions">
-            <button class="detail-action-btn" @click="backToList">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            </button>
-            <div class="spacer"></div>
-            <button class="detail-action-btn" @click="openEditRecipe">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            </button>
-            <button class="detail-action-btn danger" @click="deleteCurrentRecipe">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- No photo: show header bar instead -->
-        <div v-else class="detail-header-bar">
-          <button class="btn-icon" @click="backToList">
+        <!-- Photo card -->
+        <div class="detail-top-bar">
+          <button class="detail-back-btn" @click="backToList">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           </button>
           <div class="spacer"></div>
-          <button class="btn-icon" @click="openEditRecipe">
+          <button class="detail-top-action" @click="openEditRecipe">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           </button>
-          <button class="btn-icon delete-btn" @click="deleteCurrentRecipe">
+          <button class="detail-top-action danger" @click="deleteCurrentRecipe">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
         </div>
-        
-        <!-- Scrollable content -->
+
         <div class="detail-body">
+          <div class="detail-photo-card" v-if="selectedRecipe.photos && selectedRecipe.photos.length > 0"
+               @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd">
+            <div class="detail-carousel" :style="{ transform: `translateX(-${currentCarouselIndex * 100}%)` }">
+              <div class="detail-carousel-slide" v-for="(photo, i) in selectedRecipe.photos" :key="i" @click="openFullscreen(photo)">
+                <img :src="photo" />
+              </div>
+            </div>
+            <div class="detail-photo-dots" v-if="selectedRecipe.photos.length > 1">
+              <span v-for="(_, i) in selectedRecipe.photos" :key="i" class="photo-dot" :class="{ active: i === currentCarouselIndex }"></span>
+            </div>
+          </div>
+
+
           <!-- Recipe card -->
           <div class="detail-recipe-card">
             <h1 class="detail-title">{{ selectedRecipe.name }}</h1>
@@ -417,7 +409,7 @@ const adjustTextareaHeight = (e) => {
     <transition name="slide-up">
       <div v-if="showRecipeModal" class="modal-overlay full-modal">
         <div class="modal-header">
-          <button class="btn-text" @click="showRecipeModal = false">Отмена</button>
+          <button class="modal-cancel-btn" @click="showRecipeModal = false">Отмена</button>
           <h3>{{ isEditing ? 'Редактировать' : 'Новый рецепт' }}</h3>
           <button class="btn-primary small" @click="saveRecipe">Сохранить</button>
         </div>
@@ -436,26 +428,34 @@ const adjustTextareaHeight = (e) => {
             </div>
           </div>
           
-          <div class="form-group">
-            <label>Категория</label>
-            <select v-model="editingRecipe.category_id">
-              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.emoji }} {{ cat.name }}</option>
-            </select>
+          <div class="form-island">
+            <div class="form-group">
+              <label>Категория</label>
+              <select v-model="editingRecipe.category_id">
+                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.emoji }} {{ cat.name }}</option>
+              </select>
+            </div>
           </div>
           
-          <div class="form-group">
-            <label>Название</label>
-            <input type="text" v-model="editingRecipe.name" placeholder="Название рецепта">
+          <div class="form-island">
+            <div class="form-group">
+              <label>Название</label>
+              <input type="text" v-model="editingRecipe.name" placeholder="Название рецепта" @focus="scrollToField($event)">
+            </div>
+            
+            <div class="island-divider"></div>
+            
+            <div class="form-group">
+              <label>Описание / Рецепт</label>
+              <textarea v-model="editingRecipe.content" @input="adjustTextareaHeight" @focus="scrollToField($event)" placeholder="Ингредиенты, шаги..."></textarea>
+            </div>
           </div>
           
-          <div class="form-group">
-            <label>Описание / Рецепт</label>
-            <textarea v-model="editingRecipe.content" @input="adjustTextareaHeight" placeholder="Ингредиенты, шаги..."></textarea>
-          </div>
-          
-          <div class="form-group" v-if="!isEditing">
-            <label>Заметка (опционально)</label>
-            <input type="text" v-model="editingRecipe.note" placeholder="Первая заметка">
+          <div class="form-island" v-if="!isEditing">
+            <div class="form-group">
+              <label>Заметка (опционально)</label>
+              <input type="text" v-model="editingRecipe.note" placeholder="Первая заметка" @focus="scrollToField($event)">
+            </div>
           </div>
         </div>
       </div>
@@ -683,15 +683,59 @@ button {
 /* Detail View */
 .detail-view { background: var(--bg-app); display: flex; flex-direction: column; }
 
-/* Photo area with overlay actions */
-.detail-photo-area {
+/* Top action bar */
+.detail-top-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.detail-back-btn {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  color: var(--text-main);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.detail-back-btn:active { background: var(--surface-secondary); }
+.detail-top-action {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  color: var(--text-main);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.detail-top-action:active { background: var(--surface-secondary); }
+.detail-top-action.danger { color: #d32f2f; }
+
+/* Scrollable body */
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Photo inside card */
+.detail-photo-card {
   position: relative;
   width: 100%;
   aspect-ratio: 4/3;
-  max-height: 300px;
+  max-height: 260px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--surface-border);
   background: var(--surface-container);
-  flex-shrink: 0;
 }
 .detail-carousel {
   display: flex;
@@ -706,7 +750,7 @@ button {
 }
 .detail-photo-dots {
   position: absolute;
-  bottom: 14px;
+  bottom: 12px;
   left: 0; right: 0;
   display: flex;
   justify-content: center;
@@ -724,50 +768,8 @@ button {
   background: #fff;
   width: 20px;
 }
-.detail-photo-actions {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  display: flex;
-  align-items: center;
-  padding: 10px 8px;
-  z-index: 3;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent);
-}
-.detail-action-btn {
-  width: 40px; height: 40px;
-  border-radius: var(--radius-full);
-  background: rgba(255,255,255,0.2);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  border: none; cursor: pointer;
-  transition: background 0.2s;
-}
-.detail-action-btn:active { background: rgba(255,255,255,0.35); }
-.detail-action-btn.danger { color: #ff6b6b; }
 
-/* Header bar when no photo */
-.detail-header-bar {
-  display: flex;
-  align-items: center;
-  padding: 8px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--surface-border);
-  flex-shrink: 0;
-  gap: 4px;
-}
-
-/* Scrollable body */
-.detail-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  padding-bottom: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+/* Recipe card */
 .detail-recipe-card {
   background: var(--surface);
   border-radius: var(--radius-xl);
@@ -803,7 +805,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .notes-label {
   font-size: 15px;
@@ -849,7 +851,7 @@ button {
 }
 .btn-text-sm {
   padding: 8px 16px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-muted);
   background: none;
@@ -860,7 +862,7 @@ button {
 }
 .btn-primary-sm {
   padding: 8px 16px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-on-primary);
   background: var(--primary);
@@ -873,7 +875,7 @@ button {
 
 .notes-empty {
   text-align: center;
-  padding: 16px;
+  padding: 20px 16px;
   color: var(--text-muted);
   font-size: 14px;
 }
@@ -885,18 +887,19 @@ button {
 .note-card {
   display: flex;
   align-items: flex-start;
-  padding: 12px 14px;
+  padding: 14px 16px;
   background: var(--surface-secondary);
   border-radius: var(--radius-md);
-  gap: 8px;
+  border-left: 3px solid var(--primary);
+  gap: 10px;
 }
 .note-card-body { flex: 1; min-width: 0; }
 .note-card-text {
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--text-main);
   white-space: pre-wrap;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 .note-card-date {
   font-size: 11px;
@@ -1004,6 +1007,17 @@ button {
   flex: 1;
   text-align: center;
 }
+.modal-cancel-btn {
+  padding: 8px 4px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-family);
+  white-space: nowrap;
+}
 .modal-body {
   flex: 1;
   overflow-y: auto;
@@ -1070,6 +1084,40 @@ button {
 }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   border-color: var(--primary);
+}
+
+/* Form islands */
+.form-island {
+  background: var(--surface);
+  border-radius: var(--radius-xl);
+  padding: 4px 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--surface-border);
+}
+.form-island .form-group {
+  padding: 12px 0;
+}
+.form-island .form-group label {
+  margin-bottom: 6px;
+}
+.form-island .form-group input,
+.form-island .form-group select,
+.form-island .form-group textarea {
+  border: none;
+  background: none;
+  padding: 8px 0;
+  border-radius: 0;
+}
+.form-island .form-group input:focus,
+.form-island .form-group select:focus,
+.form-island .form-group textarea:focus {
+  border: none;
+  outline: none;
+}
+.island-divider {
+  height: 1px;
+  background: var(--surface-border);
+  margin: 0;
 }
 
 /* Fullscreen Photo */
