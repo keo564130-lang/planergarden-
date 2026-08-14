@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import Sortable from 'sortablejs'
+import { triggerHaptic } from '../utils/audio.js'
 
 const props = defineProps({
   categories: { type: Array, default: () => [] },
@@ -25,6 +26,7 @@ const currentView = ref('list')
 const selectedRecipe = ref(null)
 
 const searchQuery = ref('')
+const isReorderMode = ref(false)
 
 const palette = [
   'default', '#FFCDD2', '#F8BBD0', '#E1BEE7', 
@@ -41,6 +43,18 @@ const toggleCategory = (id) => {
   } else {
     expandedCategories.value.add(id)
   }
+}
+
+const toggleReorderMode = () => {
+  isReorderMode.value = !isReorderMode.value
+  triggerHaptic('tap')
+  if (isReorderMode.value) {
+    // Automatically expand all categories so all drop targets are visible
+    props.categories.forEach(c => expandedCategories.value.add(c.id))
+  }
+  nextTick(() => {
+    refreshSortables()
+  })
 }
 
 const showAddCategoryModal = ref(false)
@@ -84,24 +98,47 @@ const getRecipesForCategory = (catId) => {
 }
 
 const sortableInstances = {}
+const setupSortableForElement = (el, catId) => {
+  if (!el) return
+  if (sortableInstances[catId]) {
+    try { sortableInstances[catId].destroy() } catch (e) {}
+    delete sortableInstances[catId]
+  }
+  sortableInstances[catId] = Sortable.create(el, {
+    group: 'recipes',
+    animation: 200,
+    disabled: !isReorderMode.value,
+    handle: isReorderMode.value ? '.drag-handle' : false,
+    forceFallback: true,
+    fallbackTolerance: 2,
+    ghostClass: 'recipe-drag-ghost',
+    chosenClass: 'recipe-drag-chosen',
+    dragClass: 'recipe-drag-dragging',
+    onStart: () => {
+      triggerHaptic('tap')
+    },
+    onEnd: (evt) => {
+      const itemEl = evt.item
+      const recipeId = itemEl?.dataset?.id
+      const toCatId = evt.to?.dataset?.catId
+      if (recipeId && toCatId && evt.from !== evt.to) {
+        triggerHaptic('success')
+        emit('update-recipe-category', recipeId, toCatId)
+      }
+    }
+  })
+}
+
+const refreshSortables = () => {
+  props.categories.forEach(cat => {
+    const el = document.querySelector(`.recipe-list[data-cat-id="${cat.id}"]`)
+    if (el) setupSortableForElement(el, cat.id)
+  })
+}
+
 const setSortableRef = (el, catId) => {
   if (!el) return
-  if (!sortableInstances[catId]) {
-    sortableInstances[catId] = Sortable.create(el, {
-      group: 'recipes',
-      animation: 150,
-      delay: 200, // For mobile long-press
-      delayOnTouchOnly: true,
-      onEnd: (evt) => {
-        const itemEl = evt.item;
-        const recipeId = itemEl.dataset.id;
-        const toCatId = evt.to.dataset.catId;
-        if (recipeId && toCatId && evt.from !== evt.to) {
-          emit('update-recipe-category', recipeId, toCatId)
-        }
-      }
-    })
-  }
+  setupSortableForElement(el, catId)
 }
 
 const openRecipe = (recipe) => {
@@ -115,6 +152,19 @@ const backToList = () => {
 }
 
 const showRecipeColorPicker = ref(false)
+const showMoveModal = ref(false)
+
+const handleDirectMove = (newCatId) => {
+  if (!selectedRecipe.value) return
+  if (selectedRecipe.value.category_id === newCatId) {
+    showMoveModal.value = false
+    return
+  }
+  triggerHaptic('success')
+  emit('update-recipe-category', selectedRecipe.value.id, newCatId)
+  selectedRecipe.value.category_id = newCatId
+  showMoveModal.value = false
+}
 
 // --- View 2: Recipe Detail ---
 const currentCarouselIndex = ref(0)
@@ -559,29 +609,51 @@ const parseLink = async () => {
       <!-- VIEW 1: CATEGORY LIST -->
       <div v-if="currentView === 'list'" class="view list-view" key="list">
         
-        <!-- Search Bar -->
+        <!-- Search & Reorder Bar -->
         <div class="search-bar-container" v-if="categories.length > 0">
           <div class="search-input-wrap">
             <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             <input type="text" v-model="searchQuery" placeholder="Поиск по названию или тегам..." />
             <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''">✕</button>
           </div>
+          <button 
+            class="reorder-mode-btn" 
+            :class="{ active: isReorderMode }" 
+            @click="toggleReorderMode"
+            :title="isReorderMode ? 'Завершить перенос' : 'Режим переноса рецептов'"
+          >
+            <template v-if="!isReorderMode">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 18 12 22 16 18"></polyline><polyline points="8 6 12 2 16 6"></polyline><line x1="12" y1="2" x2="12" y2="22"></line><polyline points="18 8 22 12 18 16"></polyline><polyline points="6 8 2 12 6 16"></polyline><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+              <span>Перенос</span>
+            </template>
+            <template v-else>
+              <span class="done-text">✓ Готово</span>
+            </template>
+          </button>
         </div>
+
+        <!-- Reorder Info Banner when active -->
+        <transition name="fade">
+          <div v-if="isReorderMode" class="reorder-mode-banner">
+            <span>✨ Зажмите <b>☰</b> пальцем и перетащите рецепт в любую папку</span>
+          </div>
+        </transition>
 
         <div v-if="categories.length === 0" class="empty-state">
           <div class="empty-text">🍳<br>Добавьте первую<br>категорию рецептов</div>
           <button class="btn-primary" @click="openAddCategory">+ Добавить категорию</button>
         </div>
         
-        <div v-else class="categories-container">
-          <div v-for="cat in categories" :key="cat.id" class="category-card m3-card" :class="{ 'expanded': expandedCategories.has(cat.id) }" :style="cat.color !== 'default' ? `--cat-color: ${cat.color}` : ''">
+        <div v-else class="categories-container" :class="{ 'reorder-active': isReorderMode }">
+          <div v-for="cat in categories" :key="cat.id" class="category-card m3-card" :class="{ 'expanded': expandedCategories.has(cat.id), 'reorder-dropzone': isReorderMode }" :style="cat.color !== 'default' ? `--cat-color: ${cat.color}` : ''">
             <div class="category-header" @click="toggleCategory(cat.id)">
               <div class="cat-title">
                 <span class="emoji">{{ cat.emoji }}</span>
                 <span class="name">{{ cat.name }}</span>
+                <span v-if="isReorderMode" class="cat-count-badge">{{ getRecipesForCategory(cat.id).length }}</span>
               </div>
               <div class="cat-actions">
-                <button class="btn-icon muted small" @click="deleteCategory(cat.id, $event)">
+                <button v-if="!isReorderMode" class="btn-icon muted small" @click="deleteCategory(cat.id, $event)">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
                 <svg class="chevron-icon" :class="{'up': expandedCategories.has(cat.id)}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -590,7 +662,19 @@ const parseLink = async () => {
             
             <div v-show="expandedCategories.has(cat.id)" class="category-content">
               <div class="recipe-list" :ref="el => setSortableRef(el, cat.id)" :data-cat-id="cat.id">
-                <div v-for="recipe in getRecipesForCategory(cat.id)" :key="recipe.id" class="recipe-item" :data-id="recipe.id" @click="openRecipe(recipe)" :style="recipe.color !== 'default' ? `--recipe-color: ${recipe.color}` : ''">
+                <div 
+                  v-for="recipe in getRecipesForCategory(cat.id)" 
+                  :key="recipe.id" 
+                  class="recipe-item" 
+                  :class="{ 'in-reorder-mode': isReorderMode }"
+                  :data-id="recipe.id" 
+                  @click="!isReorderMode && openRecipe(recipe)" 
+                  :style="recipe.color !== 'default' ? `--recipe-color: ${recipe.color}` : ''"
+                >
+                  <!-- Drag Handle for finger touch -->
+                  <div v-if="isReorderMode" class="drag-handle">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+                  </div>
                   <div class="recipe-item-info">
                     <div class="recipe-item-name">{{ recipe.name }}</div>
                     <div class="recipe-tags" v-if="recipe.tags && recipe.tags.length > 0">
@@ -603,7 +687,7 @@ const parseLink = async () => {
                   </div>
                 </div>
               </div>
-              <button class="btn-text add-recipe-btn" @click="openAddRecipe(cat.id)">+ Добавить рецепт</button>
+              <button v-if="!isReorderMode" class="btn-text add-recipe-btn" @click="openAddRecipe(cat.id)">+ Добавить рецепт</button>
             </div>
           </div>
         </div>
@@ -625,10 +709,13 @@ const parseLink = async () => {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
           </button>
           <div class="spacer"></div>
-          <button class="detail-top-action" @click="openEditRecipe">
+          <button class="detail-top-action" @click="showMoveModal = true" title="Переместить в другую папку">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><polyline points="12 11 12 17 15 14"></polyline></svg>
+          </button>
+          <button class="detail-top-action" @click="openEditRecipe" title="Редактировать">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
           </button>
-          <button class="detail-top-action danger" @click="deleteCurrentRecipe">
+          <button class="detail-top-action danger" @click="deleteCurrentRecipe" title="Удалить">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
         </div>
@@ -889,6 +976,38 @@ const parseLink = async () => {
         <img :src="fullscreenPhotoSrc" @click.stop>
       </div>
     </transition>
+
+    <!-- MOVE RECIPE MODAL (Fast 1-tap folder selector) -->
+    <transition name="fade">
+      <div v-if="showMoveModal && selectedRecipe" class="modal-scrim" @click.self="showMoveModal = false">
+        <div class="move-modal-card">
+          <div class="move-modal-header">
+            <div class="move-modal-title-wrap">
+              <span class="move-modal-icon">📁</span>
+              <div>
+                <h3 class="move-modal-title">Переместить рецепт</h3>
+                <p class="move-modal-sub">«{{ selectedRecipe.name }}»</p>
+              </div>
+            </div>
+            <button class="close-btn-small" @click="showMoveModal = false">✕</button>
+          </div>
+          <div class="move-cat-list">
+            <button 
+              v-for="cat in categories" 
+              :key="cat.id" 
+              class="move-cat-btn"
+              :class="{ current: selectedRecipe.category_id === cat.id }"
+              @click="handleDirectMove(cat.id)"
+            >
+              <span class="move-cat-emoji">{{ cat.emoji }}</span>
+              <span class="move-cat-name">{{ cat.name }}</span>
+              <span v-if="selectedRecipe.category_id === cat.id" class="current-badge">✓ Текущая</span>
+              <span v-else class="move-arrow">➔</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -1010,9 +1129,13 @@ button {
   color: var(--text-muted);
 }
 .search-bar-container {
-  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 .search-input-wrap {
+  flex: 1;
   position: relative;
   display: flex;
   align-items: center;
@@ -1024,14 +1147,15 @@ button {
 }
 .search-input-wrap input {
   width: 100%;
-  padding: 12px 36px 12px 36px;
+  padding: 10px 36px 10px 36px;
   border-radius: var(--radius-full);
   border: 1px solid var(--surface-border);
   background: var(--surface);
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text-main);
   outline: none;
   font-family: var(--font-family);
+  box-sizing: border-box;
 }
 .search-input-wrap input:focus {
   border-color: var(--primary);
@@ -1039,17 +1163,113 @@ button {
 .clear-search-btn {
   position: absolute;
   right: 12px;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: var(--surface-border);
   color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   border: none;
   cursor: pointer;
+}
+
+/* Reorder Mode Button & Banner */
+.reorder-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+}
+.reorder-mode-btn:active {
+  transform: scale(0.96);
+  background: var(--surface-secondary);
+}
+.reorder-mode-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-on-primary);
+  box-shadow: var(--shadow-sm);
+}
+.done-text {
+  font-weight: 700;
+}
+
+.reorder-mode-banner {
+  background: var(--primary-light);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--primary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  animation: fadeIn 0.2s ease;
+}
+
+.cat-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin-left: 6px;
+}
+
+.drag-handle {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+  margin-right: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--primary-light);
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.recipe-item.in-reorder-mode {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* SortableJS drag visuals */
+.recipe-drag-ghost {
+  opacity: 0.3 !important;
+  background: var(--primary-light) !important;
+  border: 2px dashed var(--primary) !important;
+}
+.recipe-drag-chosen {
+  box-shadow: 0 12px 28px rgba(0,0,0,0.22) !important;
+  transform: scale(1.02);
+  z-index: 999;
+}
+.recipe-drag-dragging {
+  cursor: grabbing !important;
+  opacity: 0.95 !important;
 }
 
 .categories-container {
@@ -1781,5 +2001,127 @@ button {
   max-width: 100%;
   max-height: 240px;
   object-fit: contain;
+}
+
+/* Move Modal Styles */
+.move-modal-card {
+  width: 100%;
+  max-width: 380px;
+  max-height: 75vh;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: scaleIn 0.2s cubic-bezier(0.2, 0, 0, 1);
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.move-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--surface-border);
+  margin-bottom: 12px;
+}
+
+.move-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.move-modal-icon {
+  font-size: 24px;
+}
+
+.move-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  font-family: var(--font-family);
+}
+
+.move-modal-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+  font-family: var(--font-family);
+  max-width: 230px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.close-btn-small {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface-secondary);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+}
+
+.move-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 50vh;
+}
+
+.move-cat-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-border);
+  background: var(--bg-app);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  text-align: left;
+}
+
+.move-cat-btn:active {
+  background: var(--primary-light);
+}
+
+.move-cat-btn.current {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.move-cat-emoji {
+  font-size: 20px;
+}
+
+.move-cat-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-family);
+}
+
+.current-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.move-arrow {
+  color: var(--text-muted);
+  font-size: 14px;
 }
 </style>
