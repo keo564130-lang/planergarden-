@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Дачный Планер</string>
+    <string name="title_activity_main">Дачный Планер</string>
+    <string name="package_name">com.aleshadev.planergarden</string>
+    <string name="custom_url_scheme">com.aleshadev.planergarden</string>
+</resources>

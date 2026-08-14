@@ -1,0 +1,15 @@
+{
+  "appId": "com.aleshadev.planergarden",
+  "appName": "Дачный Планер",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#101411",
+      "showSpinner": false
+    }
+  }
+}

@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@supabase/supabase-js": "^2.110.0",
     "instagram-url-direct": "^2.0.7",
     "sortablejs": "^1.15.7",
@@ -16,6 +18,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@vitejs/plugin-vue": "^6.0.7",
     "vite": "^8.1.1"
   }
