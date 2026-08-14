@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^8.5.0",
-    "@capacitor/core": "^8.5.0",
+    "@capacitor/android": "^7.6.8",
+    "@capacitor/core": "^7.6.8",
     "@supabase/supabase-js": "^2.110.0",
     "instagram-url-direct": "^2.0.7",
     "sortablejs": "^1.15.7",
