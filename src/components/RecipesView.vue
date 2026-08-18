@@ -221,6 +221,15 @@ const selectedRecipeMedia = computed(() => {
   return items
 })
 
+const isVideoEmbed = (url) => {
+  if (!url || typeof url !== 'string') return false
+  return url.includes('video_ext.php') || 
+         url.includes('youtube.com') || 
+         url.includes('youtu.be') || 
+         url.includes('rutube.ru') || 
+         url.includes('tiktok.com/embed')
+}
+
 // Carousel swipe logic
 let touchStartX = 0
 let touchEndX = 0
@@ -728,7 +737,16 @@ const parseLink = async () => {
               <div class="detail-carousel-slide" v-for="(item, i) in selectedRecipeMedia" :key="i">
                 <template v-if="item.type === 'video'">
                   <div class="carousel-video-wrapper">
+                    <iframe 
+                      v-if="isVideoEmbed(item.src)"
+                      :src="item.src"
+                      class="carousel-video-player carousel-video-iframe"
+                      frameborder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowfullscreen
+                    ></iframe>
                     <video 
+                      v-else
                       :src="item.src" 
                       controls 
                       playsinline 
@@ -895,7 +913,14 @@ const parseLink = async () => {
                 <button type="button" class="btn-delete-video" @click="editingRecipe.video_url = null">✕ Удалить видео</button>
               </div>
               <div class="edit-video-box">
-                <video :src="editingRecipe.video_url" controls playsinline preload="metadata"></video>
+                <iframe 
+                  v-if="isVideoEmbed(editingRecipe.video_url)"
+                  :src="editingRecipe.video_url"
+                  class="edit-video-iframe"
+                  frameborder="0"
+                  allowfullscreen
+                ></iframe>
+                <video v-else :src="editingRecipe.video_url" controls playsinline preload="metadata"></video>
               </div>
             </div>
           </div>
@@ -2001,6 +2026,16 @@ button {
   max-width: 100%;
   max-height: 240px;
   object-fit: contain;
+}
+.edit-video-iframe {
+  width: 100%;
+  height: 220px;
+  border: none;
+}
+.carousel-video-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 
 /* Move Modal Styles */

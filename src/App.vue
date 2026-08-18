@@ -144,73 +144,201 @@ const subscribeUserToPush = async () => {
   }
 }
 
-// Fetch cloud data
+// Fetch cloud data with resilient two-way merge
 const fetchCloudData = async () => {
+  if (!supabase || !currentUser.value?.id) return
+  const userId = currentUser.value.id
+
+  // 1. Fetch & Merge tasks
   try {
-    // 1. Fetch tasks
     const { data: cloudTasks, error: tasksError } = await supabase
       .from('tasks')
       .select('*')
-      .eq('user_id', currentUser.value.id)
+      .eq('user_id', userId)
     
-    if (tasksError) throw tasksError
-    tasks.value = cloudTasks || []
+    if (!tasksError && cloudTasks) {
+      if (cloudTasks.length > 0) {
+        const cloudTaskMap = new Map(cloudTasks.map(t => [t.id, t]))
+        const merged = tasks.value.map(localT => cloudTaskMap.get(localT.id) || localT)
+        for (const cloudT of cloudTasks) {
+          if (!merged.some(t => t.id === cloudT.id)) merged.push(cloudT)
+        }
+        tasks.value = merged
+      } else if (tasks.value.length > 0) {
+        // Upload local tasks to cloud
+        for (const t of tasks.value) {
+          await supabase.from('tasks').upsert({
+            id: t.id,
+            user_id: userId,
+            title: t.title,
+            description: t.description || '',
+            date: t.date,
+            time: t.time || null,
+            category: t.category || 'garden',
+            completed: t.completed || false
+          }).catch(() => {})
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Tasks sync error:', err.message)
+  }
 
-    // 2. Fetch tables
+  // 2. Fetch & Merge tables
+  try {
     const { data: cloudTables, error: tablesError } = await supabase
       .from('day_tables')
       .select('*')
-      .eq('user_id', currentUser.value.id)
+      .eq('user_id', userId)
     
-    if (tablesError) throw tablesError
-    
-    dayTables.value = (cloudTables || []).map(t => ({
-      id: t.id,
-      date: t.date,
-      name: t.name,
-      time: t.time,
-      templateId: t.template_id,
-      headers: t.headers,
-      rows: t.rows,
-      user_id: t.user_id
-    }))
+    if (!tablesError && cloudTables) {
+      const mappedCloud = cloudTables.map(t => ({
+        id: t.id,
+        date: t.date,
+        name: t.name,
+        time: t.time,
+        templateId: t.template_id,
+        headers: t.headers,
+        rows: t.rows,
+        user_id: t.user_id
+      }))
+      if (mappedCloud.length > 0) {
+        const map = new Map(mappedCloud.map(t => [t.id, t]))
+        const merged = dayTables.value.map(localT => map.get(localT.id) || localT)
+        for (const ct of mappedCloud) {
+          if (!merged.some(t => t.id === ct.id)) merged.push(ct)
+        }
+        dayTables.value = merged
+      }
+    }
+  } catch (err) {
+    console.warn('Tables sync error:', err.message)
+  }
 
-    // 3. Fetch AI chats
+  // 3. Fetch & Merge AI chats
+  try {
     const { data: cloudChats, error: chatsError } = await supabase
       .from('ai_chats')
       .select('*')
-      .eq('user_id', currentUser.value.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
     
     if (!chatsError && cloudChats) {
-      aiChats.value = cloudChats
+      if (cloudChats.length > 0) {
+        const cloudChatMap = new Map(cloudChats.map(c => [c.id, c]))
+        const merged = aiChats.value.map(localC => cloudChatMap.get(localC.id) || localC)
+        for (const cc of cloudChats) {
+          if (!merged.some(c => c.id === cc.id)) merged.push(cc)
+        }
+        aiChats.value = merged
+      } else if (aiChats.value.length > 0) {
+        // Upload local chats
+        for (const c of aiChats.value) {
+          await supabase.from('ai_chats').upsert({
+            id: c.id,
+            user_id: userId,
+            title: c.title,
+            created_at: c.created_at || new Date().toISOString()
+          }).catch(() => {})
+        }
+      }
     }
+  } catch (err) {
+    console.warn('AI Chats sync error:', err.message)
+  }
 
-    // 4. Fetch recipe categories
-    const { data: cloudCategories } = await supabase
+  // 4. Fetch & Merge recipe categories
+  try {
+    const { data: cloudCategories, error: catError } = await supabase
       .from('recipe_categories')
       .select('*')
-      .eq('user_id', currentUser.value.id)
+      .eq('user_id', userId)
       .order('position', { ascending: true })
-    if (cloudCategories) recipeCategories.value = cloudCategories
+    
+    if (!catError && cloudCategories) {
+      if (cloudCategories.length > 0) {
+        const cloudCatMap = new Map(cloudCategories.map(c => [c.id, c]))
+        const merged = recipeCategories.value.map(localC => cloudCatMap.get(localC.id) || localC)
+        for (const cc of cloudCategories) {
+          if (!merged.some(c => c.id === cc.id)) merged.push(cc)
+        }
+        recipeCategories.value = merged
+      } else if (recipeCategories.value.length > 0) {
+        // Upload local categories
+        for (const c of recipeCategories.value) {
+          await supabase.from('recipe_categories').upsert({
+            id: c.id,
+            user_id: userId,
+            name: c.name,
+            emoji: c.emoji || '📁',
+            color: c.color || 'default',
+            position: c.position || 0
+          }).catch(() => {})
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Recipe categories sync error:', err.message)
+  }
 
-    // 5. Fetch recipes
-    const { data: cloudRecipes } = await supabase
+  // 5. Fetch & Merge recipes
+  try {
+    const { data: cloudRecipes, error: recError } = await supabase
       .from('recipes')
       .select('*')
-      .eq('user_id', currentUser.value.id)
+      .eq('user_id', userId)
       .order('position', { ascending: true })
-    if (cloudRecipes) recipes.value = cloudRecipes
+    
+    if (!recError && cloudRecipes) {
+      if (cloudRecipes.length > 0) {
+        const cloudRecMap = new Map(cloudRecipes.map(r => [r.id, r]))
+        const merged = recipes.value.map(localR => cloudRecMap.get(localR.id) || localR)
+        for (const cr of cloudRecipes) {
+          if (!merged.some(r => r.id === cr.id)) merged.push(cr)
+        }
+        recipes.value = merged
+      } else if (recipes.value.length > 0) {
+        // Upload local recipes
+        for (const r of recipes.value) {
+          await supabase.from('recipes').upsert({
+            id: r.id,
+            user_id: userId,
+            category_id: r.category_id,
+            name: r.name,
+            content: r.content || '',
+            photos: r.photos || [],
+            video_url: r.video_url || null,
+            color: r.color || 'default',
+            tags: r.tags || [],
+            position: r.position || 0
+          }).catch(() => {})
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Recipes sync error:', err.message)
+  }
 
-    // 6. Fetch recipe notes
-    const { data: cloudNotes } = await supabase
+  // 6. Fetch & Merge recipe notes
+  try {
+    const { data: cloudNotes, error: notesError } = await supabase
       .from('recipe_notes')
       .select('*')
-      .eq('user_id', currentUser.value.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: true })
-    if (cloudNotes) recipeNotes.value = cloudNotes
+    
+    if (!notesError && cloudNotes) {
+      if (cloudNotes.length > 0) {
+        const cloudNoteMap = new Map(cloudNotes.map(n => [n.id, n]))
+        const merged = recipeNotes.value.map(localN => cloudNoteMap.get(localN.id) || localN)
+        for (const cn of cloudNotes) {
+          if (!merged.some(n => n.id === cn.id)) merged.push(cn)
+        }
+        recipeNotes.value = merged
+      }
+    }
   } catch (err) {
-    console.error('Failed to sync cloud data:', err.message)
+    console.warn('Recipe notes sync error:', err.message)
   }
 }
 
@@ -285,6 +413,7 @@ onMounted(async () => {
   const savedRecipes = localStorage.getItem('garden_planner_recipes')
   if (savedRecipes) { try { recipes.value = JSON.parse(savedRecipes) } catch (e) {} }
   const savedNotes = localStorage.getItem('garden_planner_recipe_notes')
+  if (savedNotes) { try { recipeNotes.value = JSON.parse(savedNotes) } catch (e) {} }
   if (savedAllMsgs) { try { allAiMessages.value = JSON.parse(savedAllMsgs) } catch (e) {} }
 
   // Auto-rollover overdue incomplete tasks if enabled
@@ -366,18 +495,35 @@ onMounted(async () => {
     window.addEventListener('touchend', requestSilentPermission)
   }
 
-  // 5. Supabase Auth
+  // 5. Supabase Auth with persistent session & auto-refresh
   if (supabase) {
     try {
+      // Set up real-time auth state listener
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          currentUser.value = session.user
+          await fetchCloudData()
+        } else if (event === 'SIGNED_OUT') {
+          currentUser.value = null
+        }
+      })
+
+      // Get current session
       const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
+      if (session?.user) {
         currentUser.value = session.user
+        await fetchCloudData()
       } else {
-        const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
-        if (authError) throw authError
-        if (authData && authData.user) { currentUser.value = authData.user }
+        // Only sign in anonymously if user was NOT previously registered
+        const wasRealAccount = localStorage.getItem('garden_planner_was_real_account')
+        if (!wasRealAccount) {
+          const { data: authData, error: authError } = await supabase.auth.signInAnonymously()
+          if (!authError && authData?.user) {
+            currentUser.value = authData.user
+            await fetchCloudData()
+          }
+        }
       }
-      if (currentUser.value) { await fetchCloudData() }
     } catch (err) {
       console.error('Supabase auth initialization failed:', err.message)
     } finally {
@@ -394,8 +540,11 @@ onMounted(async () => {
 
 // Keep local storage in sync (with error protection)
 const safeLocalSet = (key, value) => {
-  try { localStorage.setItem(key, JSON.stringify(value)) }
-  catch (e) { console.warn('localStorage full, clearing old data:', e.message); try { localStorage.removeItem('garden_planner_all_ai_messages'); localStorage.setItem(key, JSON.stringify(value)) } catch(e2) {} }
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (e) {
+    console.warn('localStorage save warning for', key, ':', e.message)
+  }
 }
 watch(tasks, (v) => { safeLocalSet('garden_planner_tasks', v) }, { deep: true })
 watch(dayTables, (v) => { safeLocalSet('garden_planner_day_tables', v) }, { deep: true })
@@ -829,8 +978,10 @@ const handleAuth = async () => {
           return
         }
         currentUser.value = data.user
+        localStorage.setItem('garden_planner_was_real_account', 'true')
         await fetchCloudData()
       }
+      localStorage.setItem('garden_planner_was_real_account', 'true')
       authUsername.value = ''
       authPassword.value = ''
     } else {
@@ -845,6 +996,7 @@ const handleAuth = async () => {
         return
       }
       currentUser.value = data.user
+      localStorage.setItem('garden_planner_was_real_account', 'true')
       await fetchCloudData()
       authUsername.value = ''
       authPassword.value = ''
@@ -861,11 +1013,22 @@ const handleLogout = async () => {
   try {
     await supabase.auth.signOut()
     currentUser.value = null
+    localStorage.removeItem('garden_planner_was_real_account')
+    localStorage.removeItem('garden_planner_tasks')
+    localStorage.removeItem('garden_planner_day_tables')
+    localStorage.removeItem('garden_planner_ai_chats')
+    localStorage.removeItem('garden_planner_all_ai_messages')
+    localStorage.removeItem('garden_planner_recipe_categories')
+    localStorage.removeItem('garden_planner_recipes')
+    localStorage.removeItem('garden_planner_recipe_notes')
     tasks.value = []
     dayTables.value = []
     aiChats.value = []
     aiMessages.value = []
     allAiMessages.value = {}
+    recipeCategories.value = []
+    recipes.value = []
+    recipeNotes.value = []
     currentChatId.value = null
     activeTab.value = 'calendar'
   } catch (err) {

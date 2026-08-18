@@ -18,7 +18,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.5.0",
+    "@capacitor/cli": "^7.6.8",
     "@vitejs/plugin-vue": "^6.0.7",
     "vite": "^8.1.1"
   }
