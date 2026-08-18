@@ -1,7 +1,15 @@
 <template>
   <div class="update-modal-scrim" @click.self="handleClose">
     <div class="update-modal-card">
-      <h2 class="update-title">Новая версия — новые исправления и добавления! ✨</h2>
+      <div class="update-card-header">
+        <h2 class="update-title">Новая версия — новые исправления и добавления! ✨</h2>
+        <button class="update-close-btn" @click="handleClose" title="Закрыть" aria-label="Закрыть">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
 
       <div class="update-scroll-body">
         <!-- Добавили -->
@@ -45,13 +53,6 @@
             </li>
           </ul>
         </div>
-      </div>
-
-      <div class="update-footer">
-        <button class="update-action-btn" @click="handleClose">
-          <span>Понятно, вперёд!</span>
-          <span class="btn-emoji">🚀</span>
-        </button>
       </div>
     </div>
   </div>
@@ -107,18 +108,45 @@ const handleClose = () => {
   overflow: hidden;
 }
 
+.update-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 .update-title {
   font-size: 17px;
   font-weight: 700;
   color: var(--text-main, #1c1b1f);
-  margin: 0 0 16px;
+  margin: 0;
   line-height: 1.35;
+  flex: 1;
+}
+
+.update-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #757575);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.update-close-btn:active {
+  background: var(--surface-secondary, rgba(0, 0, 0, 0.06));
+  transform: scale(0.9);
 }
 
 .update-scroll-body {
   overflow-y: auto;
   padding-right: 4px;
-  margin-bottom: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -176,36 +204,6 @@ const handleClose = () => {
   font-size: 14px;
   line-height: 1.3;
   flex-shrink: 0;
-}
-
-.update-footer {
-  padding-top: 8px;
-}
-
-.update-action-btn {
-  width: 100%;
-  background: var(--primary, #2e7d32);
-  color: #ffffff;
-  border: none;
-  border-radius: 20px;
-  padding: 14px 20px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.25);
-  transition: transform 0.15s ease, background 0.2s ease;
-}
-
-.update-action-btn:active {
-  transform: scale(0.97);
-}
-
-.btn-emoji {
-  font-size: 16px;
 }
 
 @keyframes fadeInScrim {
