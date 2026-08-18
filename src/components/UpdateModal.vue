@@ -1,10 +1,6 @@
 <template>
   <div class="update-modal-scrim" @click.self="handleClose">
     <div class="update-modal-card">
-      <div class="update-header">
-        <div class="update-badge">🎉 Обновление v{{ version }}</div>
-      </div>
-
       <h2 class="update-title">Новая версия — новые исправления и добавления! ✨</h2>
 
       <div class="update-scroll-body">
@@ -109,34 +105,6 @@ const handleClose = () => {
   padding: 24px 20px 20px;
   animation: scaleInCard 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   overflow: hidden;
-}
-
-.update-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.update-badge {
-  display: inline-flex;
-  align-items: center;
-  background: var(--primary-light, #e8f5e9);
-  color: var(--primary, #2e7d32);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 20px;
-  letter-spacing: 0.2px;
-}
-
-.update-version {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted, #757575);
-  background: var(--surface-secondary, #f5f5f5);
-  padding: 3px 8px;
-  border-radius: 8px;
 }
 
 .update-title {

@@ -13,7 +13,7 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.04'
+const APP_VERSION = '2.6.05'
 const MAJOR_RELEASE_VERSION = '2.6.00'
 const showUpdateModal = ref(false)
 
@@ -593,7 +593,7 @@ onMounted(async () => {
 
   // 8. Check for first launch after app update (What's New)
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v4`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v5`
     const seenRelease = localStorage.getItem(releaseKey)
     if (!seenRelease) {
       localStorage.setItem(releaseKey, 'true')
@@ -613,7 +613,7 @@ const triggerWhatsNew = () => {
 
 const handleCloseUpdateModal = () => {
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v4`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v5`
     localStorage.setItem(releaseKey, 'true')
   } catch (e) {}
   showUpdateModal.value = false
@@ -1297,7 +1297,9 @@ const headerTitle = () => {
           title="Что нового в обновлении"
           aria-label="Что нового"
         >
-          <span class="update-icon-sparkle">✨</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"></path>
+          </svg>
         </button>
 
         <span v-else class="header-spacer"></span>
