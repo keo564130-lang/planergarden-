@@ -13,7 +13,7 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.09'
+const APP_VERSION = '2.6.10'
 const MAJOR_RELEASE_VERSION = '2.6.00'
 const showUpdateModal = ref(false)
 
@@ -441,7 +441,6 @@ onMounted(async () => {
   const setAppHeight = () => {
     const vv = window.visualViewport
     const h = vv ? vv.height : window.innerHeight
-    document.documentElement.style.setProperty('--app-height', h + 'px')
     // Compare against initial height (not current innerHeight which may change)
     isKeyboardOpen.value = (initialHeight - h) > 100
     // Kill any scroll the OS tries to inject
@@ -593,7 +592,7 @@ onMounted(async () => {
 
   // 8. Check for first launch after app update (What's New)
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v9`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v10`
     const seenRelease = localStorage.getItem(releaseKey)
     if (!seenRelease) {
       localStorage.setItem(releaseKey, 'true')
@@ -613,7 +612,7 @@ const triggerWhatsNew = () => {
 
 const handleCloseUpdateModal = () => {
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v9`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v10`
     localStorage.setItem(releaseKey, 'true')
   } catch (e) {}
   showUpdateModal.value = false
