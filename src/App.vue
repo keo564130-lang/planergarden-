@@ -13,7 +13,7 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.03'
+const APP_VERSION = '2.6.04'
 const MAJOR_RELEASE_VERSION = '2.6.00'
 const showUpdateModal = ref(false)
 
@@ -593,7 +593,7 @@ onMounted(async () => {
 
   // 8. Check for first launch after app update (What's New)
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v4`
     const seenRelease = localStorage.getItem(releaseKey)
     if (!seenRelease) {
       localStorage.setItem(releaseKey, 'true')
@@ -604,9 +604,16 @@ onMounted(async () => {
   } catch (e) {}
 })
 
+const triggerWhatsNew = () => {
+  try {
+    triggerHaptic('light')
+  } catch (e) {}
+  showUpdateModal.value = true
+}
+
 const handleCloseUpdateModal = () => {
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v4`
     localStorage.setItem(releaseKey, 'true')
   } catch (e) {}
   showUpdateModal.value = false
@@ -1281,6 +1288,18 @@ const headerTitle = () => {
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
+
+        <!-- What's New button in Settings tab on top-left -->
+        <button 
+          v-else-if="activeTab === 'settings'"
+          class="update-nav-btn"
+          @click="triggerWhatsNew"
+          title="Что нового в обновлении"
+          aria-label="Что нового"
+        >
+          <span class="update-icon-sparkle">✨</span>
+        </button>
+
         <span v-else class="header-spacer"></span>
 
         <h1 class="app-title">{{ headerTitle() }}</h1>
@@ -1661,7 +1680,8 @@ const headerTitle = () => {
 
 <style>
 .back-btn,
-.theme-toggle-btn {
+.theme-toggle-btn,
+.update-nav-btn {
   background: transparent;
   border: none;
   color: var(--text-main);
@@ -1673,11 +1693,14 @@ const headerTitle = () => {
   align-items: center;
   justify-content: center;
   transition: var(--transition-fast);
+  font-size: 18px;
 }
 
 .back-btn:active,
-.theme-toggle-btn:active {
+.theme-toggle-btn:active,
+.update-nav-btn:active {
   background: var(--surface-secondary);
+  transform: scale(0.92);
 }
 
 .header-spacer {
