@@ -4,8 +4,8 @@
   "description": "Удобный планер задач для сада, огорода и дома",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#101411",
+  "theme_color": "#101411",
   "icons": [
     {
       "src": "/icon-192.png",
