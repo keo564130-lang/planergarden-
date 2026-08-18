@@ -319,7 +319,7 @@ export default async function handler(req, res) {
       const wallMatch = url.match(/wall(-?\d+)_(\d+)/i)
       const videoMatch = url.match(/(?:video|clip)(-?\d+)_(\d+)/i)
 
-      let title = 'ВКонтакте'
+      let title = ''
       let description = ''
       let image = ''
       let video = ''
@@ -327,84 +327,106 @@ export default async function handler(req, res) {
       // A) VK WALL POST (Пост на стене)
       if (wallMatch) {
         const [_, oid, id] = wallMatch
-        video = `https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`
 
-        // 1. Fetch desktop page with remix cookies to get Title and Image
-        try {
-          const dRes = await fetch(`https://vk.com/wall${oid}_${id}`, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-              'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-              'Cookie': 'remixlang=0; remixbadbrowser=0;'
-            },
-            signal: AbortSignal.timeout(5000)
-          })
-          if (dRes.ok) {
-            const buf = Buffer.from(await dRes.arrayBuffer())
-            const html = new TextDecoder('windows-1251').decode(buf)
-
-            const tMatch = html.match(/<title>([^<]+)<\/title>/i)
-            if (tMatch && tMatch[1]) {
-              title = tMatch[1].replace(/\s*\|\s*ВКонтакте.*$/i, '').trim()
-            }
-
-            const imgMatch = html.match(/"(https:\/\/[^"]+userapi\.com[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i)
-            if (imgMatch && imgMatch[1]) {
-              image = imgMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/&amp;/g, '&')
-            }
-          }
-        } catch (e) {}
-
-        // 2. Fetch al_wall to get full post text & video
-        try {
-          const res = await fetch(`https://vk.ru/al_wall.php?act=get_wall`, {
-            method: 'POST',
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'X-Requested-With': 'XMLHttpRequest',
-              'Referer': `https://vk.ru/wall${oid}_${id}`
-            },
-            body: `act=get_wall&al=1&owner_id=${oid}&offset=0`,
-            signal: AbortSignal.timeout(5000)
-          })
-
-          if (res.ok) {
+        // 1. Fetch al_wall to parse post data-exec with exact ID matching
+        const hosts = ['vk.ru', 'vk.com', 'm.vk.com']
+        for (const h of hosts) {
+          try {
+            const res = await fetch(`https://${h}/al_wall.php?act=get_wall`, {
+              method: 'POST',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': `https://${h}/wall${oid}_${id}`
+              },
+              body: `act=get_wall&al=1&owner_id=${oid}&offset=0`,
+              signal: AbortSignal.timeout(5000)
+            })
+            if (!res.ok) continue
             const buf = Buffer.from(await res.arrayBuffer())
-            let text = new TextDecoder('windows-1251').decode(buf)
-            text = text.replace(/\\"/g, '"').replace(/\\\//g, '/').replace(/\\n/g, '\n').replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+            const text = new TextDecoder('windows-1251').decode(buf)
+            if (text.length < 1000) continue
 
-            const postKey = `${oid}_${id}`
-            let postSnippet = text
-            const postIdx = text.indexOf(`data-post-id="${postKey}"`) !== -1 ? text.indexOf(`data-post-id="${postKey}"`) : text.indexOf(`id="post${postKey}"`)
-            if (postIdx !== -1) {
-              postSnippet = text.slice(postIdx, postIdx + 12000)
+            // Parse PostContentContainer
+            const marker = 'data-exec=\\"'
+            let cursor = 0
+            let targetItem = null
+            let firstItem = null
+
+            while ((cursor = text.indexOf(marker, cursor)) !== -1) {
+              const start = cursor + marker.length
+              const end = text.indexOf('\\">', start)
+              if (end === -1) break
+              const rawAttr = text.slice(start, end)
+              cursor = end + 3
+
+              if (!rawAttr.includes('PostContentContainer')) continue
+
+              const jsonStr = rawAttr
+                .replace(/&quot;/g, '"')
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/\\\\"/g, '\\"')
+                .replace(/\\\\/g, '\\')
+                .replace(/\\\//g, '/')
+
+              try {
+                const data = JSON.parse(jsonStr)
+                const initData = data['PostContentContainer/init'] || data
+                const item = initData.item || {}
+
+                if (!firstItem) firstItem = item
+                if (item.id == id || item.post_id == id) {
+                  targetItem = item
+                  break
+                }
+              } catch(e) {}
             }
 
-            const textMatch = postSnippet.match(/"text":\s*"([\s\S]*?[^\\])"/i)
-            if (textMatch && textMatch[1]) {
-              description = textMatch[1].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim()
-            }
+            const chosenItem = targetItem || firstItem
+            if (chosenItem) {
+              if (chosenItem.text) {
+                description = chosenItem.text
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .replace(/<[^>]+>/g, '')
+                  .replace(/&quot;/g, '"')
+                  .replace(/&#39;/g, "'")
+                  .replace(/&amp;/g, '&')
+                  .trim()
+              }
 
-            if (!description) {
-              const descMatch = postSnippet.match(/"description":\s*"([\s\S]*?[^\\])"/i)
-              if (descMatch && descMatch[1]) {
-                description = descMatch[1].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim()
+              const attachments = chosenItem.attachments || []
+              for (const att of attachments) {
+                if (att.type === 'video' && !video) {
+                  const v = att.video
+                  if (v?.access_key && v?.owner_id && v?.id) {
+                    video = `https://vk.com/video_ext.php?oid=${v.owner_id}&id=${v.id}&hash=${v.access_key}&hd=2`
+                  } else if (v?.owner_id && v?.id) {
+                    video = `https://vk.com/video_ext.php?oid=${v.owner_id}&id=${v.id}&hd=2`
+                  }
+                }
+                if (att.type === 'photo' && !image) {
+                  const sizes = att.photo?.sizes || []
+                  if (sizes.length > 0) {
+                    image = sizes[sizes.length - 1]?.url || ''
+                  }
+                }
               }
             }
 
-            const vidIdMatch = postSnippet.match(/"owner_id":\s*(-?\d+)[\s\S]*?"id":\s*(\d+)[\s\S]*?"access_key":\s*"([^"]+)"/i) ||
-                               postSnippet.match(/"type":\s*"video"[\s\S]*?"access_key":\s*"([^"]+)"/i)
-            if (vidIdMatch && vidIdMatch[1] && vidIdMatch[2] && vidIdMatch[3]) {
-              video = `https://vk.com/video_ext.php?oid=${vidIdMatch[1]}&id=${vidIdMatch[2]}&hash=${vidIdMatch[3]}&hd=2`
-            }
+            if (description || image || video) break
+          } catch(e) {}
+        }
 
-            if (!image) {
-              const imgUrls = [...postSnippet.matchAll(/"url":\s*"(https:\/\/sun9-[^"]+)"/gi)].map(m => m[1])
-              if (imgUrls.length > 0) image = imgUrls[imgUrls.length - 1]
-            }
-          }
-        } catch (e) {}
+        // Clean title from first line of text
+        if (description) {
+          const firstLine = description.split('\n').filter(l => l.trim())[0] || ''
+          title = firstLine.length > 60 ? firstLine.slice(0, 60) + '...' : firstLine
+        }
+        if (!title) title = 'Рецепт из ВКонтакте'
+
       }
 
       // B) VK VIDEO / CLIP (Видео или Клип)
@@ -432,34 +454,14 @@ export default async function handler(req, res) {
           }
         } catch (e) {}
 
-        // 2. Fetch desktop page to get Title and Image
-        try {
-          const dRes = await fetch(`https://vk.com/video${oid}_${id}`, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-              'Cookie': 'remixlang=0; remixbadbrowser=0;'
-            },
-            signal: AbortSignal.timeout(4000)
-          })
-          if (dRes.ok) {
-            const buf = Buffer.from(await dRes.arrayBuffer())
-            const html = new TextDecoder('windows-1251').decode(buf)
-
-            const tMatch = html.match(/<title>([^<]+)<\/title>/i)
-            if (tMatch && tMatch[1]) title = tMatch[1].replace(/\s*\|\s*ВКонтакте.*$/i, '').trim()
-
-            const imgMatch = html.match(/"(https:\/\/[^"]+userapi\.com[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i)
-            if (imgMatch && imgMatch[1]) image = imgMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/&amp;/g, '&')
-          }
-        } catch (e) {}
+        title = 'VK Клип'
       }
 
       description = cleanDescriptionText(description)
-      title = title.replace(/\s*\|\s*ВКонтакте.*$/i, '').trim()
       const proxyImage = image ? `/api/parse-url?image=${encodeURIComponent(image)}` : ''
 
       return res.status(200).json({
-        title,
+        title: title || 'Новый рецепт',
         description,
         image: proxyImage,
         originalImage: image,

@@ -549,40 +549,34 @@ const parseLink = async () => {
         .trim();
     }
     
-    // Fallback for generic VK/Max titles
+    // Fallback for generic VK/Max/Instagram titles
     let finalTitle = data.title || ''
-    const lowerTitle = finalTitle.toLowerCase()
+    const lowerTitle = finalTitle.toLowerCase().trim()
     
     const isGeneric = !finalTitle || 
-      url.includes('max.ru') ||
-      url.includes('instagram.com') ||
-      url.includes('instagr.am') ||
-      lowerTitle.includes('instagram') ||
+      finalTitle === 'Новый рецепт' ||
       lowerTitle.includes('вконтакте') || 
       lowerTitle.includes('vk.com') || 
       lowerTitle.includes('vkontakte') || 
       lowerTitle.includes('wall post') || 
       lowerTitle.includes('пост на стене') || 
       lowerTitle.includes('запись на стене') ||
-      lowerTitle === 'vk';
+      lowerTitle === 'vk' ||
+      lowerTitle === 'vk клип' ||
+      url.includes('max.ru') ||
+      url.includes('instagram.com') ||
+      url.includes('instagr.am');
       
-    if (isGeneric) {
-      if (data.description) {
-        // Take the first line or sentence as title
-        const lines = data.description.split('\n').filter(l => l.trim())
-        const firstLine = lines.length ? lines[0].trim() : ''
-        
-        if (firstLine) {
-          finalTitle = firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine
-          // Remove the first line from the content so it doesn't duplicate the title
-          const remainingDesc = data.description.substring(firstLine.length).trim()
-          // Only replace if there's remaining content, otherwise keep the full text
-          data.description = remainingDesc || data.description
-        } else {
-          finalTitle = 'Новый рецепт'
-        }
-      } else {
-        finalTitle = 'Новый рецепт'
+    if (isGeneric && data.description) {
+      // Take the first line or sentence as title
+      const lines = data.description.split('\n').filter(l => l.trim())
+      const firstLine = lines.length ? lines[0].trim() : ''
+      
+      if (firstLine) {
+        finalTitle = firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine
+        // Remove the first line from the content so it doesn't duplicate the title
+        const remainingDesc = data.description.substring(firstLine.length).trim()
+        data.description = remainingDesc || data.description
       }
     }
     

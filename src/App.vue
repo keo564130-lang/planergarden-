@@ -12,7 +12,7 @@ import AppSettingsModal from './components/AppSettingsModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.5.03'
+const APP_VERSION = '2.5.04'
 
 // Base configurations
 const year = ref(2026)
