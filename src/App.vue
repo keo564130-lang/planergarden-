@@ -13,7 +13,7 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.12'
+const APP_VERSION = '2.6.13'
 const MAJOR_RELEASE_VERSION = '2.6.00'
 const showUpdateModal = ref(false)
 
@@ -592,7 +592,7 @@ onMounted(async () => {
 
   // 8. Check for first launch after app update (What's New)
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v12`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v13`
     const seenRelease = localStorage.getItem(releaseKey)
     if (!seenRelease) {
       localStorage.setItem(releaseKey, 'true')
@@ -612,7 +612,7 @@ const triggerWhatsNew = () => {
 
 const handleCloseUpdateModal = () => {
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v12`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v13`
     localStorage.setItem(releaseKey, 'true')
   } catch (e) {}
   showUpdateModal.value = false
@@ -1627,7 +1627,7 @@ const headerTitle = () => {
       </transition>
 
       <!-- M3 Bottom Navigation Bar -->
-      <nav class="bottom-nav" v-show="!isKeyboardOpen && !showUpdateModal && !showAppSettings && !showTimePicker">
+      <nav class="bottom-nav" v-show="!isKeyboardOpen">
         <button 
           v-for="tabKey in (appSettings?.tabOrder || ['calendar', 'recipes', 'ai', 'settings'])" 
           :key="tabKey" 
