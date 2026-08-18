@@ -13,7 +13,7 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.17'
+const APP_VERSION = '2.6.18'
 const MAJOR_RELEASE_VERSION = '2.6.00'
 const showUpdateModal = ref(false)
 
@@ -592,7 +592,7 @@ onMounted(async () => {
 
   // 8. Check for first launch after app update (What's New)
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v17`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v18`
     const seenRelease = localStorage.getItem(releaseKey)
     if (!seenRelease) {
       localStorage.setItem(releaseKey, 'true')
@@ -612,7 +612,7 @@ const triggerWhatsNew = () => {
 
 const handleCloseUpdateModal = () => {
   try {
-    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v17`
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}_v18`
     localStorage.setItem(releaseKey, 'true')
   } catch (e) {}
   showUpdateModal.value = false
@@ -1271,8 +1271,7 @@ const headerTitle = () => {
 </script>
 
 <template>
-  <div class="device-frame" :class="{ 'dark-theme': isDarkMode }">
-    <div class="device-screen" :class="{ 'dark-theme': isDarkMode }">
+  <div class="device-screen" :class="{ 'dark-theme': isDarkMode }">
 
       <!-- App Header -->
       <header class="app-header">
@@ -1676,7 +1675,6 @@ const headerTitle = () => {
       </transition>
 
     </div>
-  </div>
 </template>
 
 <style>
