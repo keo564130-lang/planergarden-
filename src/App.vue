@@ -13,9 +13,14 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.32'
+const APP_VERSION = '2.6.33'
 const MAJOR_RELEASE_VERSION = '2.6.00'
 const showUpdateModal = ref(false)
+
+// Sync body class for modal backdrop (covers safe area gap on iOS)
+watch(showUpdateModal, (open) => {
+  document.body.classList.toggle('modal-open', open)
+})
 
 // Base configurations
 const year = ref(2026)
