@@ -89,14 +89,12 @@ body,
   top: 0;
   left: 0;
   right: 0;
-  bottom: calc(-1 * env(safe-area-inset-bottom, 34px));
+  bottom: 0;
   background-color: var(--bg-app) !important;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   border: none;
   border-radius: 0;
-  padding-bottom: env(safe-area-inset-bottom, 34px);
 }
 
 /* ==========================================
