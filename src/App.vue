@@ -9,10 +9,12 @@ import TableSelectorModal from './components/TableSelectorModal.vue'
 import AiChat from './components/AiChat.vue'
 import RecipesView from './components/RecipesView.vue'
 import AppSettingsModal from './components/AppSettingsModal.vue'
+import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.5.05'
+const APP_VERSION = '2.6.00'
+const showUpdateModal = ref(false)
 
 // Base configurations
 const year = ref(2026)
@@ -588,7 +590,24 @@ onMounted(async () => {
       window.history.replaceState({}, '', '/')
     }
   } catch (e) {}
+
+  // 8. Check for first launch after app update (What's New)
+  try {
+    const lastSeenVersion = localStorage.getItem('garden_planner_last_seen_version')
+    if (lastSeenVersion !== APP_VERSION) {
+      setTimeout(() => {
+        showUpdateModal.value = true
+      }, 600)
+    }
+  } catch (e) {}
 })
+
+const handleCloseUpdateModal = () => {
+  try {
+    localStorage.setItem('garden_planner_last_seen_version', APP_VERSION)
+  } catch (e) {}
+  showUpdateModal.value = false
+}
 
 // Keep local storage in sync (with error protection)
 const safeLocalSet = (key, value) => {
@@ -1581,6 +1600,15 @@ const headerTitle = () => {
           v-if="showAppSettings" 
           v-model="appSettings" 
           @close="showAppSettings = false" 
+        />
+      </transition>
+
+      <!-- Update / What's New Modal -->
+      <transition name="fade">
+        <UpdateModal 
+          v-if="showUpdateModal"
+          :version="APP_VERSION"
+          @close="handleCloseUpdateModal"
         />
       </transition>
 
