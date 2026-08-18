@@ -223,19 +223,17 @@ body {
 }
 
 /* ==========================================
-   M3 Bottom Navigation Bar
+   M3 Bottom Navigation — Floating Island
    ========================================== */
 .bottom-nav {
   display: flex;
   background: var(--surface);
   flex-shrink: 0;
   z-index: 100;
-  width: 100%;
-  margin: 0;
-  padding: 4px 0 calc(6px + env(safe-area-inset-bottom, 0px));
-  border-radius: 0;
-  border-top: 1px solid var(--surface-border);
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+  margin: 0 16px 0 16px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--surface-border);
 }
 
 .bottom-nav-item {
