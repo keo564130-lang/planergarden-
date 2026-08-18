@@ -149,10 +149,22 @@ body,
   background: var(--surface);
   flex-shrink: 0;
   z-index: 100;
-  margin: 0 16px 0 16px;
-  border-radius: var(--radius-xl);
+  margin: 0 16px;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   box-shadow: var(--shadow-md);
   border: 1px solid var(--surface-border);
+  border-bottom: none;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Fill safe-area gap below dock bar on iPhones */
+.device-screen::after {
+  content: '';
+  display: block;
+  flex-shrink: 0;
+  background: var(--surface);
+  height: env(safe-area-inset-bottom, 0px);
+  margin-top: -1px; /* overlap dock bar bottom edge */
 }
 
 .bottom-nav-item {
