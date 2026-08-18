@@ -13,7 +13,7 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.00'
+const APP_VERSION = '2.6.01'
 const showUpdateModal = ref(false)
 
 // Base configurations
@@ -74,7 +74,7 @@ const shareData = ref(null)
 
 // Auth state
 const currentUser = ref(null)
-const isLoadingCloud = ref(true)
+const isLoadingCloud = ref(false)
 const authUsername = ref('')
 const authPassword = ref('')
 const authMode = ref('login') // 'login' or 'register'
@@ -500,21 +500,20 @@ onMounted(async () => {
     window.addEventListener('touchend', requestSilentPermission)
   }
 
-  // 5. Supabase Auth with persistent session & auto-refresh
+  // 5. Supabase Auth with persistent session & auto-refresh (Non-blocking with safety timeout)
   if (supabase) {
-    try {
-      // Set up real-time auth state listener
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          currentUser.value = session.user
-          await fetchCloudData()
-        } else if (event === 'SIGNED_OUT') {
-          currentUser.value = null
-        }
-      })
+    // Set up real-time auth state listener
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        currentUser.value = session.user
+        fetchCloudData()
+      } else if (event === 'SIGNED_OUT') {
+        currentUser.value = null
+      }
+    })
 
-      // Get current session
-      const { data: { session } } = await supabase.auth.getSession()
+    // Init session in background without blocking UI
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         currentUser.value = session.user
         await fetchCloudData()
@@ -529,11 +528,11 @@ onMounted(async () => {
           }
         }
       }
-    } catch (err) {
-      console.error('Supabase auth initialization failed:', err.message)
-    } finally {
+    }).catch((err) => {
+      console.warn('Supabase auth initialization warning:', err?.message)
+    }).finally(() => {
       isLoadingCloud.value = false
-    }
+    })
   } else {
     isLoadingCloud.value = false
   }
