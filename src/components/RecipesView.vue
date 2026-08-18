@@ -497,7 +497,17 @@ const parseLink = async () => {
         title: mData.data.title || '',
         description: mData.data.description || '',
         originalImage: mData.data.image?.url || '',
-        image: mData.data.image?.url ? `/api/parse-url?image=${encodeURIComponent(mData.data.image.url)}` : ''
+        image: mData.data.image?.url ? `/api/parse-url?image=${encodeURIComponent(mData.data.image.url)}` : '',
+        video: mData.data.video?.url || null
+      }
+    }
+
+    // Client-side fallback for VK video/clips
+    if (!data.video && (url.includes('vk.com') || url.includes('vkvideo.ru') || url.includes('vk.ru'))) {
+      const vkMatch = url.match(/(?:video|clip)(-?\d+_\d+)/i)
+      if (vkMatch) {
+        const [oid, id] = vkMatch[1].split('_')
+        data.video = `https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`
       }
     }
     

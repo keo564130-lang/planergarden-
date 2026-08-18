@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     try {
       const imgRes = await fetch(req.query.image, {
         headers: { 
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
           'Referer': 'https://vk.com/'
         },
         redirect: 'follow',
@@ -187,7 +187,7 @@ export default async function handler(req, res) {
         : url + (url.includes('?') ? '&embed=1' : '?embed=1')
 
       const tgRes = await fetch(tgEmbedUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36' },
         signal: AbortSignal.timeout(8000)
       })
 
@@ -244,7 +244,7 @@ export default async function handler(req, res) {
   if (url.includes('max.ru/')) {
     try {
       const maxRes = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15' },
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36' },
         signal: AbortSignal.timeout(8000)
       })
 
@@ -254,33 +254,47 @@ export default async function handler(req, res) {
         let image = ''
         let video = ''
 
-        const maxTextMatch = html.match(/message:\s*\{.*?text:\s*"([\s\S]*?[^\\])"\s*[,}]/i)
+        const maxTextMatch = html.match(/message:\s*\{.*?text:\s*"([\s\S]*?[^\\])"\s*[,}]/i) ||
+                             html.match(/"text":\s*"([\s\S]*?[^\\])"/i)
         if (maxTextMatch && maxTextMatch[1]) {
           description = decodeEntities(maxTextMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\'))
         }
 
-        const maxImgMatch = html.match(/attachment:.*?url:\s*"([^"]+)"/i)
+        const maxImgMatch = html.match(/attachment:.*?url:\s*"([^"]+)"/i) ||
+                            html.match(/"(https:\/\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i) ||
+                            html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
         if (maxImgMatch && maxImgMatch[1]) {
           image = maxImgMatch[1].replace(/\\u0026/g, '&')
         }
 
-        const maxVideoMatch = html.match(/video:.*?url:\s*"([^"]+)"/i) || html.match(/video_url:\s*"([^"]+)"/i)
+        // Comprehensive search for video (mp4, mov, video URL, attachment)
+        const maxVideoMatch = html.match(/"(https:\/\/[^"]+\.(?:mp4|mov)[^"]*)"/i) ||
+                              html.match(/<video[^>]*src=["']([^"']+)["']/i) ||
+                              html.match(/<source[^>]*src=["']([^"']+)["']/i) ||
+                              html.match(/video:.*?url:\s*"([^"]+)"/i) ||
+                              html.match(/"video":\s*\{[^}]*?"url":\s*"([^"]+)"/i) ||
+                              html.match(/"video_url":\s*"([^"]+)"/i) ||
+                              html.match(/"videoUrl":\s*"([^"]+)"/i) ||
+                              html.match(/"contentUrl":\s*"([^"]+)"/i) ||
+                              html.match(/"stream_url":\s*"([^"]+)"/i)
         if (maxVideoMatch && maxVideoMatch[1]) {
-          video = maxVideoMatch[1].replace(/\\u0026/g, '&')
+          video = maxVideoMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/')
         }
 
         const proxyImage = image ? `/api/parse-url?image=${encodeURIComponent(image)}` : ''
 
         return res.status(200).json({
           title: '',
-          description,
+          description: description.trim(),
           image: proxyImage,
           originalImage: image,
-          video,
+          video: video || '',
           source: url
         })
       }
-    } catch (err) {}
+    } catch (err) {
+      console.warn('Max parser error:', err.message)
+    }
   }
 
   // =========================================================================
@@ -288,100 +302,122 @@ export default async function handler(req, res) {
   // =========================================================================
   if (url.includes('vk.com') || url.includes('vkvideo.ru') || url.includes('vk.ru')) {
     try {
-      // Extract VK Video / Clip ID if present (e.g. video-123456_789012 or clip-123456_789012)
+      // Extract video/clip ID (e.g. clip-224424384_456239108 or video-224424384_456239108)
       const vkVideoIdMatch = url.match(/(?:video|clip)(-?\d+_\d+)/i)
       let vkEmbedUrl = ''
+      let oid = '', id = ''
       if (vkVideoIdMatch) {
-        const [oid, id] = vkVideoIdMatch[1].split('_')
+        const parts = vkVideoIdMatch[1].split('_')
+        oid = parts[0]
+        id = parts[1]
         vkEmbedUrl = `https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`
       }
 
-      // Fetch with Mobile iPhone UA to bypass VK bot block
-      const mobileHeaders = {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Referer': 'https://vk.com/'
+      let title = 'ВКонтакте'
+      let description = ''
+      let image = ''
+      let video = vkEmbedUrl
+
+      // 1. Try to get direct video hash via al_video.php (internal fast VK endpoint)
+      if (oid && id) {
+        try {
+          const spaRes = await fetch(`https://vk.com/al_video.php?act=show_inline&al=1&video=${oid}_${id}`, {
+            method: 'POST',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
+              'X-Requested-With': 'XMLHttpRequest',
+              'Referer': 'https://vk.com/'
+            },
+            signal: AbortSignal.timeout(4000)
+          })
+          if (spaRes.ok) {
+            const spaText = await spaRes.text()
+            const hashMatch = spaText.match(/"([a-f0-9]{18})"/i)
+            if (hashMatch && hashMatch[1]) {
+              video = `https://vk.com/video_ext.php?oid=${oid}&id=${id}&hash=${hashMatch[1]}&hd=2`
+            }
+          }
+        } catch (e) {}
       }
 
-      // Convert URL to mobile or direct video endpoint
-      let fetchVkUrl = url
-      if (url.includes('vk.com/clip')) fetchVkUrl = url.replace('vk.com/clip', 'm.vk.com/clip')
-      else if (url.includes('vk.com/video')) fetchVkUrl = url.replace('vk.com/video', 'm.vk.com/video')
-      else if (url.includes('vk.com/wall')) fetchVkUrl = url.replace('vk.com/wall', 'm.vk.com/wall')
-      else if (!fetchVkUrl.includes('m.vk.com')) fetchVkUrl = fetchVkUrl.replace('https://vk.com', 'https://m.vk.com')
+      // 2. Try fetching HTML page with manual redirect to prevent redirect loop errors
+      try {
+        let currentUrl = url
+        let pageRes = null
+        for (let i = 0; i < 3; i++) {
+          pageRes = await fetch(currentUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+              'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            },
+            redirect: 'manual',
+            signal: AbortSignal.timeout(5000)
+          })
+          if (pageRes && pageRes.status >= 300 && pageRes.status < 400 && pageRes.headers.get('location')) {
+            currentUrl = pageRes.headers.get('location')
+            if (!currentUrl.startsWith('http')) currentUrl = 'https://vk.com' + currentUrl
+          } else {
+            break
+          }
+        }
 
-      const vkRes = await fetch(fetchVkUrl, {
-        headers: mobileHeaders,
-        redirect: 'follow',
-        signal: AbortSignal.timeout(10000)
-      })
-
-      if (vkRes.ok) {
-        const rawBuffer = Buffer.from(await vkRes.arrayBuffer())
-        let html = ''
-        try {
-          html = new TextDecoder('windows-1251').decode(rawBuffer)
-          if (!html.includes('ВКонтакте') && !html.includes('vk.com')) {
+        if (pageRes && pageRes.ok) {
+          const rawBuffer = Buffer.from(await pageRes.arrayBuffer())
+          let html = ''
+          try {
+            html = new TextDecoder('windows-1251').decode(rawBuffer)
+            if (!html.includes('ВКонтакте') && !html.includes('vk.com')) {
+              html = rawBuffer.toString('utf-8')
+            }
+          } catch (e) {
             html = rawBuffer.toString('utf-8')
           }
-        } catch (e) {
-          html = rawBuffer.toString('utf-8')
-        }
 
-        let title = extractMeta(html, 'og:title') || extractMeta(html, 'title') || ''
-        let description = extractMeta(html, 'og:description') || extractMeta(html, 'description') || ''
-        let image = extractMeta(html, 'og:image') || ''
-        let video = extractMeta(html, 'og:video') || extractMeta(html, 'og:video:secure_url') || ''
+          title = extractMeta(html, 'og:title') || extractMeta(html, 'title') || title
+          description = extractMeta(html, 'og:description') || extractMeta(html, 'description') || ''
+          image = extractMeta(html, 'og:image') || ''
 
-        // Try extracting full wall post text
-        const vkPostTextMatch = html.match(/<div[^>]*class=["'][^"']*(?:wall_post_text|pi_text|PostContent|media_desc)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i) ||
-                                html.match(/<div[^>]*data-testid=["']wall_post_text["'][^>]*>([\s\S]*?)<\/div>/i)
-        if (vkPostTextMatch && vkPostTextMatch[1]) {
-          description = cleanHtmlText(vkPostTextMatch[1])
-        }
+          // Search for direct MP4 stream in HTML
+          const mp4Match = html.match(/"url1080":\s*"([^"]+)"/i) ||
+                           html.match(/"url720":\s*"([^"]+)"/i) ||
+                           html.match(/"url480":\s*"([^"]+)"/i) ||
+                           html.match(/"url360":\s*"([^"]+)"/i) ||
+                           html.match(/"url240":\s*"([^"]+)"/i) ||
+                           html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"/i) ||
+                           html.match(/<video[^>]*src="([^"]+\.mp4[^"]*)"/i)
+          if (mp4Match && mp4Match[1]) {
+            video = mp4Match[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/\\/g, '')
+          }
 
-        // Try extracting direct MP4 streams from VK player options (url720, url480, url360, url240)
-        const mp4Match = html.match(/"url1080":\s*"([^"]+)"/i) ||
-                         html.match(/"url720":\s*"([^"]+)"/i) ||
-                         html.match(/"url480":\s*"([^"]+)"/i) ||
-                         html.match(/"url360":\s*"([^"]+)"/i) ||
-                         html.match(/"url240":\s*"([^"]+)"/i) ||
-                         html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"/i) ||
-                         html.match(/<video[^>]*src="([^"]+\.mp4[^"]*)"/i)
-        
-        if (mp4Match && mp4Match[1]) {
-          video = mp4Match[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/\\/g, '')
-        }
+          // Search for image cover in HTML
+          if (!image) {
+            const imgMatch = html.match(/"(https:\/\/[^"]+(?:userapi\.com|vk\.com|vkvideo\.ru)[^"]+\.(?:jpg|jpeg|webp|png)[^"]*)"/i)
+            if (imgMatch && imgMatch[1]) {
+              image = imgMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/')
+            }
+          }
 
-        // If no direct MP4 stream was found, use the official VK embed iframe
-        if (!video && vkEmbedUrl) {
-          video = vkEmbedUrl
-        }
-
-        // Fallback for image
-        if (!image) {
-          const imgMatch = html.match(/<img[^>]*class=["'][^"']*(?:VideoCard__image|thumb_image|page_post_thumb_wrap|page_post_sized_thumbs)[^"']*["'][^>]*src=["']([^"']+)["']/i) ||
-                           html.match(/<img[^>]*src=["']([^"']+)["'][^>]*class=["'][^"']*(?:VideoCard__image|thumb_image)[^"']*["']/i)
-          if (imgMatch && imgMatch[1]) {
-            image = decodeEntities(imgMatch[1])
+          // Extract wall text if present
+          const vkPostTextMatch = html.match(/<div[^>]*class=["'][^"']*(?:wall_post_text|pi_text|PostContent|media_desc)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)
+          if (vkPostTextMatch && vkPostTextMatch[1]) {
+            description = cleanHtmlText(vkPostTextMatch[1])
           }
         }
+      } catch (e) {}
 
-        // Format description
-        description = cleanDescriptionText(description)
+      description = cleanDescriptionText(description)
+      title = title.replace(/\s*\|\s*ВКонтакте.*$/i, '').trim()
+      const proxyImage = image ? `/api/parse-url?image=${encodeURIComponent(image)}` : ''
 
-        const proxyImage = image ? `/api/parse-url?image=${encodeURIComponent(image)}` : ''
-
-        return res.status(200).json({
-          title: title.replace(/\s*\|\s*ВКонтакте.*$/i, '').trim(),
-          description,
-          image: proxyImage,
-          originalImage: image,
-          video,
-          source: url
-        })
-      }
+      return res.status(200).json({
+        title,
+        description,
+        image: proxyImage,
+        originalImage: image,
+        video: video || '',
+        source: url
+      })
     } catch (err) {
       console.warn('VK parser error:', err.message)
     }
@@ -393,10 +429,11 @@ export default async function handler(req, res) {
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
       },
+      redirect: 'follow',
       signal: AbortSignal.timeout(8000)
     })
 
@@ -486,7 +523,7 @@ function cleanDescriptionText(desc) {
   if (!desc) return ''
   return desc
     .replace(/<img[^>]*class=["'][^"']*emoji[^"']*["'][^>]*alt=["']([^"']+)["'][^>]*>/gi, '$1')
-    .replace(/<img[^>]*alt=["']([^"']+)["'][^>]*class=["'][^"']*emoji[^"']*["'][^>]*>/gi, '$1')
+    .replace(/<img[^>]*alt=["']([^"']+)["'][^>]*class=["'][^"']*emoji[^"']*["']/gi, '$1')
     .split('Последние записи:')[0]
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]+>/g, '')
