@@ -385,13 +385,37 @@ const handlePhotoUpload = async (e) => {
 watch(() => props.shareData, (newVal) => {
   if (newVal) {
     isEditing.value = false
+    let detectedVideo = newVal.video_url || null
+    let rawText = newVal.text || ''
+    let title = newVal.title || ''
+
+    // Detect link in shared text for VK video/clips
+    const urlMatch = rawText.match(/https?:\/\/[^\s]+/i)
+    if (urlMatch) {
+      const sharedUrl = urlMatch[0]
+      if (!detectedVideo) {
+        if (sharedUrl.includes('vk.com') || sharedUrl.includes('vkvideo.ru') || sharedUrl.includes('vk.ru')) {
+          const vkMatch = sharedUrl.match(/(?:video|clip)(-?\d+_\d+)/i)
+          if (vkMatch) {
+            const [oid, id] = vkMatch[1].split('_')
+            detectedVideo = `https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`
+          }
+        }
+      }
+    }
+
+    if (!title && rawText) {
+      const firstLine = rawText.split('\n')[0].trim()
+      title = firstLine.length > 50 ? firstLine.slice(0, 50) + '...' : firstLine
+    }
+
     editingRecipe.value = {
       id: null,
       category_id: props.categories.length ? props.categories[0].id : null,
-      name: newVal.title || '',
-      content: newVal.text || '',
+      name: title || 'Новый рецепт',
+      content: rawText,
       photos: newVal.photos ? [...newVal.photos] : [],
-      video_url: newVal.video_url || null,
+      video_url: detectedVideo,
       note: '',
       tags: [],
       color: 'default'

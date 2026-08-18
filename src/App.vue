@@ -12,7 +12,7 @@ import AppSettingsModal from './components/AppSettingsModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.5.01'
+const APP_VERSION = '2.5.02'
 
 // Base configurations
 const year = ref(2026)
@@ -539,6 +539,55 @@ onMounted(async () => {
   // 6. Start notification scheduler — check every 30 seconds
   checkNotifications()
   setInterval(checkNotifications, 30000)
+
+  // 7. Web Share Target Handler (PWA & Android Share Sheet)
+  const processSharedPayload = (data) => {
+    if (!data) return
+    activeTab.value = 'recipes'
+    shareData.value = data
+  }
+
+  // A) BroadcastChannel listener from sw.js
+  if ('BroadcastChannel' in window) {
+    try {
+      const shareChannel = new BroadcastChannel('share-target')
+      shareChannel.onmessage = (event) => {
+        if (event.data) processSharedPayload(event.data)
+      }
+    } catch (e) {}
+  }
+
+  // B) Check Cache Storage for cached share data
+  if ('caches' in window) {
+    try {
+      caches.open('share-target-cache').then(async (cache) => {
+        const response = await cache.match('/_share_data')
+        if (response) {
+          const data = await response.json()
+          await cache.delete('/_share_data')
+          if (data && (Date.now() - (data.timestamp || 0) < 60000)) {
+            processSharedPayload(data)
+          }
+        }
+      }).catch(() => {})
+    } catch (e) {}
+  }
+
+  // C) Check URL search params (?shared=1 or ?title=...&text=...&url=...)
+  try {
+    const urlParams = new URLSearchParams(window.location.search)
+    const title = urlParams.get('title') || ''
+    const text = urlParams.get('text') || ''
+    const sharedUrl = urlParams.get('url') || ''
+    if (title || text || sharedUrl) {
+      processSharedPayload({
+        title,
+        text: text + (sharedUrl ? '\n' + sharedUrl : ''),
+        photos: []
+      })
+      window.history.replaceState({}, '', '/')
+    }
+  } catch (e) {}
 })
 
 // Keep local storage in sync (with error protection)
