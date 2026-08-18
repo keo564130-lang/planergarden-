@@ -13,7 +13,8 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.01'
+const APP_VERSION = '2.6.02'
+const MAJOR_RELEASE_VERSION = '2.6.00'
 const showUpdateModal = ref(false)
 
 // Base configurations
@@ -592,18 +593,21 @@ onMounted(async () => {
 
   // 8. Check for first launch after app update (What's New)
   try {
-    const lastSeenVersion = localStorage.getItem('garden_planner_last_seen_version')
-    if (lastSeenVersion !== APP_VERSION) {
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}`
+    const seenRelease = localStorage.getItem(releaseKey)
+    if (!seenRelease) {
+      localStorage.setItem(releaseKey, 'true')
       setTimeout(() => {
         showUpdateModal.value = true
-      }, 600)
+      }, 400)
     }
   } catch (e) {}
 })
 
 const handleCloseUpdateModal = () => {
   try {
-    localStorage.setItem('garden_planner_last_seen_version', APP_VERSION)
+    const releaseKey = `garden_planner_seen_release_${MAJOR_RELEASE_VERSION.replace(/\./g, '_')}`
+    localStorage.setItem(releaseKey, 'true')
   } catch (e) {}
   showUpdateModal.value = false
 }
@@ -1602,15 +1606,6 @@ const headerTitle = () => {
         />
       </transition>
 
-      <!-- Update / What's New Modal -->
-      <transition name="fade">
-        <UpdateModal 
-          v-if="showUpdateModal"
-          :version="APP_VERSION"
-          @close="handleCloseUpdateModal"
-        />
-      </transition>
-
       <!-- M3 Bottom Navigation Bar -->
       <nav class="bottom-nav" v-show="!isKeyboardOpen">
         <button 
@@ -1650,6 +1645,15 @@ const headerTitle = () => {
           </template>
         </button>
       </nav>
+
+      <!-- Update / What's New Modal (Overlays Everything) -->
+      <transition name="fade">
+        <UpdateModal 
+          v-if="showUpdateModal"
+          :version="MAJOR_RELEASE_VERSION"
+          @close="handleCloseUpdateModal"
+        />
+      </transition>
 
     </div>
   </div>
