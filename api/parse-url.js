@@ -327,6 +327,35 @@ export default async function handler(req, res) {
       // A) VK WALL POST (Пост на стене)
       if (wallMatch) {
         const [_, oid, id] = wallMatch
+        video = `https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`
+
+        // 1. Fetch desktop page with remix cookies to get Title and Image
+        try {
+          const dRes = await fetch(`https://vk.com/wall${oid}_${id}`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+              'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+              'Cookie': 'remixlang=0; remixbadbrowser=0;'
+            },
+            signal: AbortSignal.timeout(5000)
+          })
+          if (dRes.ok) {
+            const buf = Buffer.from(await dRes.arrayBuffer())
+            const html = new TextDecoder('windows-1251').decode(buf)
+
+            const tMatch = html.match(/<title>([^<]+)<\/title>/i)
+            if (tMatch && tMatch[1]) {
+              title = tMatch[1].replace(/\s*\|\s*ВКонтакте.*$/i, '').trim()
+            }
+
+            const imgMatch = html.match(/"(https:\/\/[^"]+userapi\.com[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i)
+            if (imgMatch && imgMatch[1]) {
+              image = imgMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/&amp;/g, '&')
+            }
+          }
+        } catch (e) {}
+
+        // 2. Fetch al_wall to get full post text & video
         try {
           const res = await fetch(`https://vk.ru/al_wall.php?act=get_wall`, {
             method: 'POST',
@@ -337,7 +366,7 @@ export default async function handler(req, res) {
               'Referer': `https://vk.ru/wall${oid}_${id}`
             },
             body: `act=get_wall&al=1&owner_id=${oid}&offset=0`,
-            signal: AbortSignal.timeout(6000)
+            signal: AbortSignal.timeout(5000)
           })
 
           if (res.ok) {
@@ -352,26 +381,11 @@ export default async function handler(req, res) {
               postSnippet = text.slice(postIdx, postIdx + 12000)
             }
 
-            // Extract post text
             const textMatch = postSnippet.match(/"text":\s*"([\s\S]*?[^\\])"/i)
             if (textMatch && textMatch[1]) {
               description = textMatch[1].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim()
             }
 
-            // Extract video attachment with hash
-            const vidIdMatch = postSnippet.match(/"owner_id":\s*(-?\d+)[\s\S]*?"id":\s*(\d+)[\s\S]*?"access_key":\s*"([^"]+)"/i) ||
-                               postSnippet.match(/"type":\s*"video"[\s\S]*?"access_key":\s*"([^"]+)"/i)
-            if (vidIdMatch && vidIdMatch[1] && vidIdMatch[2] && vidIdMatch[3]) {
-              video = `https://vk.com/video_ext.php?oid=${vidIdMatch[1]}&id=${vidIdMatch[2]}&hash=${vidIdMatch[3]}&hd=2`
-            } else {
-              const vidSimple = postSnippet.match(/href=["']\/(video[^"']+)["']/i) || postSnippet.match(/data-video=["']([^"']+)["']/i)
-              if (vidSimple && vidSimple[1]) {
-                const vm = vidSimple[1].match(/(-?\d+)_(\d+)/)
-                if (vm) video = `https://vk.com/video_ext.php?oid=${vm[1]}&id=${vm[2]}&hd=2`
-              }
-            }
-
-            // Extract video description fallback
             if (!description) {
               const descMatch = postSnippet.match(/"description":\s*"([\s\S]*?[^\\])"/i)
               if (descMatch && descMatch[1]) {
@@ -379,13 +393,15 @@ export default async function handler(req, res) {
               }
             }
 
-            // Extract high-res image
-            const imgUrls = [...postSnippet.matchAll(/"url":\s*"(https:\/\/sun9-[^"]+)"/gi)].map(m => m[1])
-            if (imgUrls.length > 0) {
-              image = imgUrls[imgUrls.length - 1]
-            } else {
-              const rawImg = postSnippet.match(/"(https:\/\/sun9-[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i)
-              if (rawImg) image = rawImg[1]
+            const vidIdMatch = postSnippet.match(/"owner_id":\s*(-?\d+)[\s\S]*?"id":\s*(\d+)[\s\S]*?"access_key":\s*"([^"]+)"/i) ||
+                               postSnippet.match(/"type":\s*"video"[\s\S]*?"access_key":\s*"([^"]+)"/i)
+            if (vidIdMatch && vidIdMatch[1] && vidIdMatch[2] && vidIdMatch[3]) {
+              video = `https://vk.com/video_ext.php?oid=${vidIdMatch[1]}&id=${vidIdMatch[2]}&hash=${vidIdMatch[3]}&hd=2`
+            }
+
+            if (!image) {
+              const imgUrls = [...postSnippet.matchAll(/"url":\s*"(https:\/\/sun9-[^"]+)"/gi)].map(m => m[1])
+              if (imgUrls.length > 0) image = imgUrls[imgUrls.length - 1]
             }
           }
         } catch (e) {}
@@ -416,33 +432,24 @@ export default async function handler(req, res) {
           }
         } catch (e) {}
 
-        // 2. Fetch wall of owner to extract clip description & cover
+        // 2. Fetch desktop page to get Title and Image
         try {
-          const wRes = await fetch(`https://vk.ru/al_wall.php?act=get_wall`, {
-            method: 'POST',
+          const dRes = await fetch(`https://vk.com/video${oid}_${id}`, {
             headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'X-Requested-With': 'XMLHttpRequest',
-              'Referer': `https://vk.ru/video${oid}_${id}`
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+              'Cookie': 'remixlang=0; remixbadbrowser=0;'
             },
-            body: `act=get_wall&al=1&owner_id=${oid}&offset=0`,
             signal: AbortSignal.timeout(4000)
           })
-          if (wRes.ok) {
-            const buf = Buffer.from(await wRes.arrayBuffer())
-            let text = new TextDecoder('windows-1251').decode(buf)
-            text = text.replace(/\\"/g, '"').replace(/\\\//g, '/').replace(/\\n/g, '\n').replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+          if (dRes.ok) {
+            const buf = Buffer.from(await dRes.arrayBuffer())
+            const html = new TextDecoder('windows-1251').decode(buf)
 
-            const clipIdx = text.indexOf(id)
-            if (clipIdx !== -1) {
-              const snippet = text.slice(Math.max(0, clipIdx - 500), clipIdx + 4000)
-              const descMatch = snippet.match(/"description":\s*"([\s\S]*?[^\\])"/i) || snippet.match(/"text":\s*"([\s\S]*?[^\\])"/i)
-              if (descMatch && descMatch[1]) description = descMatch[1].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim()
+            const tMatch = html.match(/<title>([^<]+)<\/title>/i)
+            if (tMatch && tMatch[1]) title = tMatch[1].replace(/\s*\|\s*ВКонтакте.*$/i, '').trim()
 
-              const imgUrls = [...snippet.matchAll(/"url":\s*"(https:\/\/sun9-[^"]+)"/gi)].map(m => m[1])
-              if (imgUrls.length > 0) image = imgUrls[imgUrls.length - 1]
-            }
+            const imgMatch = html.match(/"(https:\/\/[^"]+userapi\.com[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i)
+            if (imgMatch && imgMatch[1]) image = imgMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/&amp;/g, '&')
           }
         } catch (e) {}
       }
