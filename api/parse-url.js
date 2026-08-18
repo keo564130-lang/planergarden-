@@ -434,27 +434,69 @@ export default async function handler(req, res) {
         const [_, oid, id] = videoMatch
         video = `https://vk.com/video_ext.php?oid=${oid}&id=${id}&hd=2`
 
-        // 1. Get video hash via fast internal gateway
-        try {
-          const spaRes = await fetch(`https://vk.ru/al_video.php?act=show_inline&al=1&video=${oid}_${id}`, {
-            method: 'POST',
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
-              'X-Requested-With': 'XMLHttpRequest',
-              'Referer': `https://vk.ru/video${oid}_${id}`
-            },
-            signal: AbortSignal.timeout(4000)
-          })
-          if (spaRes.ok) {
-            const spaText = await spaRes.text()
-            const hashMatch = spaText.match(/"([a-f0-9]{18})"/i)
+        // Query al_video with act=show to get full description, thumbnail, title, and hash
+        const hosts = ['vk.ru', 'vk.com', 'm.vk.com']
+        for (const h of hosts) {
+          try {
+            const res = await fetch(`https://${h}/al_video.php`, {
+              method: 'POST',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': `https://${h}/clip${oid}_${id}`
+              },
+              body: `act=show&al=1&video=${oid}_${id}&list=clip${oid}_${id}`,
+              signal: AbortSignal.timeout(5000)
+            })
+            if (!res.ok) continue
+
+            const buf = Buffer.from(await res.arrayBuffer())
+            let text = new TextDecoder('windows-1251').decode(buf)
+            text = text.replace(/\\"/g, '"').replace(/\\\//g, '/').replace(/\\n/g, '\n').replace(/&quot;/g, '"').replace(/&amp;/g, '&')
+
+            // 1. Extract Description
+            const descMatch = text.match(/"description":\s*"([\s\S]*?[^\\])"/i)
+            if (descMatch && descMatch[1]) {
+              description = descMatch[1]
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<a\b[^>]*>[\s\S]*?(?:<\/a>|$)/gi, '')
+                .replace(/<[^>]+>/g, '')
+                .replace(/&#33;/g, '!')
+                .replace(/&#39;/g, "'")
+                .replace(/<a\b.*/gi, '')
+                .trim()
+            }
+
+            // 2. Extract Video Hash
+            const hashMatch = text.match(/"([a-f0-9]{18})"/i)
             if (hashMatch && hashMatch[1]) {
               video = `https://vk.com/video_ext.php?oid=${oid}&id=${id}&hash=${hashMatch[1]}&hd=2`
             }
-          }
-        } catch (e) {}
 
-        title = 'VK Клип'
+            // 3. Extract Thumbnail
+            const thumbMatch = text.match(/"thumb":\s*"([^"]+)"/i) || text.match(/"(https:\/\/sun9-[^"]+video_thumb[^"]*)"/i)
+            if (thumbMatch && thumbMatch[1]) {
+              image = thumbMatch[1]
+            }
+
+            // 4. Extract Title
+            if (description) {
+              const firstLine = description.split('\n').filter(l => l.trim())[0] || ''
+              title = firstLine.length > 60 ? firstLine.slice(0, 60) + '...' : firstLine
+            }
+            if (!title) {
+              const titleMatch = text.match(/"title":\s*"([\s\S]*?[^\\])"/i) || text.match(/"md_title":\s*"([\s\S]*?[^\\])"/i)
+              if (titleMatch && titleMatch[1] && !titleMatch[1].startsWith('Clip by') && !titleMatch[1].startsWith('Video by')) {
+                title = titleMatch[1]
+              }
+            }
+
+            if (description || image) break
+          } catch(e) {}
+        }
+
+        if (!title) title = 'VK Клип'
       }
 
       description = cleanDescriptionText(description)
