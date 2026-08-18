@@ -11,6 +11,9 @@ import RecipesView from './components/RecipesView.vue'
 import AppSettingsModal from './components/AppSettingsModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
+// App version (increment on every change)
+const APP_VERSION = '2.5.01'
+
 // Base configurations
 const year = ref(2026)
 const currentMonth = ref(null)
@@ -1489,7 +1492,7 @@ const headerTitle = () => {
                 <div class="about-logo">🌱</div>
                 <div class="about-info">
                   <div class="about-title">Дачный и Домашний Планер</div>
-                  <div class="about-ver">Версия 2.5 • Offline Ready PWA ⚡</div>
+                  <div class="about-ver">Версия {{ APP_VERSION }} • Offline Ready PWA ⚡</div>
                 </div>
               </div>
 
