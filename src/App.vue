@@ -13,7 +13,7 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.30'
+const APP_VERSION = '2.6.31'
 const MAJOR_RELEASE_VERSION = '2.6.00'
 const showUpdateModal = ref(false)
 
