@@ -2,8 +2,7 @@
   <div class="update-modal-scrim" @click.self="handleClose">
     <div class="update-modal-card">
       <div class="update-header">
-        <div class="update-badge">🎉 Новое обновление</div>
-        <div class="update-version">v{{ version }}</div>
+        <div class="update-badge">🎉 Обновление v{{ version }}</div>
       </div>
 
       <h2 class="update-title">Новая версия — новые исправления и добавления! ✨</h2>
