@@ -76,7 +76,7 @@ body,
   width: 100%;
   margin: 0;
   padding: 0;
-  background-color: var(--surface) !important;
+  background-color: var(--bg-app) !important;
   color: var(--text-main);
   font-family: var(--font-family);
   transition:
@@ -89,13 +89,14 @@ body,
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(-1 * env(safe-area-inset-bottom, 34px));
   background-color: var(--bg-app) !important;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border: none;
   border-radius: 0;
+  padding-bottom: env(safe-area-inset-bottom, 34px);
 }
 
 /* ==========================================
