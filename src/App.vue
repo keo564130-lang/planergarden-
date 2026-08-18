@@ -13,7 +13,7 @@ import UpdateModal from './components/UpdateModal.vue'
 import { triggerHaptic } from './utils/audio.js'
 
 // App version (increment on every change)
-const APP_VERSION = '2.6.33'
+const APP_VERSION = '2.6.34'
 const MAJOR_RELEASE_VERSION = '2.6.00'
 const showUpdateModal = ref(false)
 
@@ -446,6 +446,7 @@ onMounted(async () => {
   const setAppHeight = () => {
     const vv = window.visualViewport
     const h = vv ? vv.height : window.innerHeight
+    document.documentElement.style.setProperty('--app-height', h + 'px')
     // Compare against initial height (not current innerHeight which may change)
     isKeyboardOpen.value = (initialHeight - h) > 100
     // Kill any scroll the OS tries to inject
@@ -1276,6 +1277,7 @@ const headerTitle = () => {
 </script>
 
 <template>
+  <div class="device-frame">
   <div class="device-screen" :class="{ 'dark-theme': isDarkMode }">
 
       <!-- App Header -->
@@ -1680,6 +1682,7 @@ const headerTitle = () => {
       </transition>
 
     </div>
+  </div>
 </template>
 
 <style>
