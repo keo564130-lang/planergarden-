@@ -87,15 +87,13 @@ body,
 .device-screen {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: 100%;
-  height: 100dvh;
   background-color: var(--bg-app) !important;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border: none;
   border-radius: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* ==========================================
@@ -150,21 +148,9 @@ body,
   flex-shrink: 0;
   z-index: 100;
   margin: 0 16px;
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   border: 1px solid var(--surface-border);
-  border-bottom: none;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/* Fill safe-area gap below dock bar on iPhones */
-.device-screen::after {
-  content: '';
-  display: block;
-  flex-shrink: 0;
-  background: var(--surface);
-  height: env(safe-area-inset-bottom, 0px);
-  margin-top: -1px; /* overlap dock bar bottom edge */
 }
 
 .bottom-nav-item {
