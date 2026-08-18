@@ -93,7 +93,6 @@ body,
   overflow: hidden;
   border: none;
   border-radius: 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* ==========================================
@@ -151,6 +150,7 @@ body,
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   border: 1px solid var(--surface-border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .bottom-nav-item {
