@@ -87,7 +87,7 @@ body,
 .device-screen {
   position: fixed;
   inset: 0;
-  background-color: var(--bg-app) !important;
+  background-color: magenta !important;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -146,7 +146,7 @@ body,
   background: var(--surface);
   flex-shrink: 0;
   z-index: 100;
-  margin: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+  margin: 0 16px;
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   border: 1px solid var(--surface-border);
