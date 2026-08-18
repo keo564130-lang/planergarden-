@@ -54,6 +54,13 @@
           </ul>
         </div>
       </div>
+
+      <div class="update-footer">
+        <button class="update-action-btn" @click="handleClose">
+          <span>Понятно, вперёд!</span>
+          <span class="btn-emoji">🚀</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -204,6 +211,36 @@ const handleClose = () => {
   font-size: 14px;
   line-height: 1.3;
   flex-shrink: 0;
+}
+
+.update-footer {
+  padding-top: 12px;
+}
+
+.update-action-btn {
+  width: 100%;
+  background: var(--primary, #2e7d32);
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.25);
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.update-action-btn:active {
+  transform: scale(0.97);
+}
+
+.btn-emoji {
+  font-size: 16px;
 }
 
 @keyframes fadeInScrim {
