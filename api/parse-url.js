@@ -48,7 +48,7 @@ export default async function handler(req, res) {
 
       const rapidRes = await fetch(`https://instagram360.p.rapidapi.com/postdetail/?code_or_url=${shortcode}`, {
         headers: {
-          'x-rapidapi-key': 'f09a814d17msha5fcec7fa4a0149p1de51djsnfa6510e57f67',
+          'x-rapidapi-key': '197b595825mshb9cb780e5787095p1f9a0bjsn3b39bfd96f62',
           'x-rapidapi-host': 'instagram360.p.rapidapi.com'
         },
         signal: AbortSignal.timeout(12000)
